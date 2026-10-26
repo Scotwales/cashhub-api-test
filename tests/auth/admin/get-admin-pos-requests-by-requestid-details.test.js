@@ -1,17 +1,18 @@
 const request = require('supertest');
 const { ADMIN, STATUS } = require('../../../test-data/constants');
 const { getRequestHeaders } = require('../../../utilities/api');
+const { resolveRequestId } = require('../../../test-data/apiFixtures');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-
-const requestId = process.env.CASHHUB_TEST_PARAM_REQUEST_ID;
 
 describe('Admin - Full detail card for one request: catalog item, requesting agent,', function() {
 
   describe('Happy Path', function() {
 
     test('should return 200 from GET /api/v1/admin/pos/requests/{requestId}/details', async function() {
+      const requestId = await resolveRequestId();
+
       const response = await request(baseUrl)
         .get(ADMIN.POS_REQUESTS_BY_REQUEST_ID_DETAILS(requestId))
         .set(getRequestHeaders());

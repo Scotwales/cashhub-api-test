@@ -1,12 +1,10 @@
 const request = require('supertest');
 const { POS_AUTH, STATUS } = require('../../../test-data/constants');
 const { getRequestHeaders } = require('../../../utilities/api');
-const { generateReference } = require('../../../data-generator/TestDataGenerator');
+const { resolveAccountId, resolveTerminalId } = require('../../../test-data/apiFixtures');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-
-const terminalId = process.env.CASHHUB_TEST_DATA_TERMINAL_ID;
 
 describe('PosAuth - POST /api/v1/PosAuth/login', function() {
 
@@ -17,8 +15,8 @@ describe('PosAuth - POST /api/v1/PosAuth/login', function() {
         .post(POS_AUTH.LOGIN)
         .set(getRequestHeaders())
         .send({
-          terminalId: terminalId,
-          accountId: generateReference('cashhub')
+          terminalId: await resolveTerminalId(),
+          accountId: await resolveAccountId()
         });
 
       expect(response.status).toBe(STATUS.OK);

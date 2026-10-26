@@ -202,8 +202,76 @@ const GENERATED_FIELDS = {
   description: 'description',
   features: 'features',
   deviceid: 'deviceId',
-  devicefingerprint: 'deviceFingerprint'
+  devicefingerprint: 'deviceFingerprint',
+  modelcode: 'modelCode',
+  serialnumber: 'serialNumber',
+  terminalref: 'terminalRef',
+  physicaltid: 'physicalTid',
+  terminalid: 'terminalId'
 };
+
+// Resource identifiers that can be fetched or created by the shared fixture
+// resolver. They are overridden by CASHHUB_TEST_PARAM_* / CASHHUB_TEST_DATA_*
+// when a known value is supplied.
+const RESOLVED_FIELDS = {
+  accountid: 'resolveAccountId',
+  accountnumber: 'resolveAccountNumber',
+  inventoryid: 'resolveInventoryId',
+  linkedaccountid: 'resolveLinkedAccountId',
+  modelcode: 'resolveModelCode',
+  outletid: 'resolveOutletId',
+  physicaltid: 'resolvePhysicalTid',
+  requestid: 'resolveRequestId',
+  serialnumber: 'resolveSerialNumber',
+  terminalid: 'resolveTerminalId',
+  terminalref: 'resolveTerminalRef',
+  terminalrefs: 'resolveTerminalRefs',
+  userid: 'resolveUserId'
+};
+
+const PATH_RESOLVERS = {
+  inventoryid: 'resolveInventoryId',
+  outletid: 'resolveOutletId',
+  requestid: 'resolveRequestId',
+  terminalid: 'resolveTerminalId',
+  'terminal-ref': 'resolveTerminalRef',
+  userid: 'resolveUserId'
+};
+
+function fieldResolver(name) {
+  return RESOLVED_FIELDS[name.toLowerCase()];
+}
+
+function pathParameterResolver(operation, name) {
+  if (name.toLowerCase() === 'id') {
+    if (/\/User\//i.test(operation.path)) {
+      return 'resolveUserId';
+    }
+    if (/\/Notification\//i.test(operation.path)) {
+      return 'resolveNotificationId';
+    }
+    return undefined;
+  }
+  return PATH_RESOLVERS[name.toLowerCase()];
+}
+
+// A create endpoint receives values for the resource it is creating rather
+// than references to an existing one, so those values stay generated.
+function generatedResourceFields(operation) {
+  if (operation.method !== 'post') {
+    return new Set();
+  }
+  if (/\/admin\/pos\/inventory$/i.test(operation.path)) {
+    return new Set(['modelcode']);
+  }
+  if (/\/admin\/pos\/terminals\/available$/i.test(operation.path)) {
+    return new Set(['terminalref', 'serialnumber', 'physicaltid']);
+  }
+  if (/\/Terminal\/activate$/i.test(operation.path)) {
+    return new Set(['terminalid']);
+  }
+  return new Set();
+}
 
 class Emitter {
   constructor(reserved = [], options = {}) {
@@ -216,6 +284,11 @@ class Emitter {
   generated(field) {
     this.uses.add('generateTestDataSet');
     return `testData.${field}`;
+  }
+
+  resolved(resolver) {
+    this.uses.add(resolver);
+    return `await ${resolver}()`;
   }
 
   fixture(variable, environmentName) {
@@ -234,6 +307,10 @@ class Emitter {
   }
 
   value(name, schema, indent) {
+    const resolver = fieldResolver(name);
+    if (resolver && !this.options.generatedResourceFields?.has(name.toLowerCase())) {
+      return this.resolved(resolver);
+    }
     const resolved = mergeAllOf(resolve(schema));
     if (resolved.oneOf?.length) {
       return this.value(name, resolved.oneOf[0], indent);
@@ -448,7 +525,11 @@ function testSource(operation) {
   const bodyFields = new Set(
     Object.keys(body?.schema.properties || {}).map(field => field.toLowerCase())
   );
-  const emitter = new Emitter(pathArgs, { bodyFields, requiresExistingCredentials });
+  const emitter = new Emitter(pathArgs, {
+    bodyFields,
+    requiresExistingCredentials,
+    generatedResourceFields: generatedResourceFields(operation)
+  });
   const group = groupName(operation.tag);
   const constantName = constantNames.get(operation);
   const call = pathArgs.length ? `${constantName}(${pathArgs.join(', ')})` : constantName;
@@ -458,6 +539,24 @@ function testSource(operation) {
     .trim();
   const summary = rawSummary.split(/\.\s/)[0].replace(/\.$/, '').trim() || rawSummary;
   const queryParams = queryParameters(operation);
+
+  const resolvedPathParameters = new Map();
+  const unresolvedPathParameters = [];
+  for (const parameter of pathParameters(operation)) {
+    const resolver = pathParameterResolver(operation, parameter);
+    if (resolver) {
+      resolvedPathParameters.set(parameterVariable(parameter), resolver);
+      emitter.uses.add(resolver);
+    } else {
+      unresolvedPathParameters.push(parameter);
+    }
+  }
+  for (const parameter of queryParams) {
+    const resolver = fieldResolver(parameter.name);
+    if (resolver) {
+      emitter.uses.add(resolver);
+    }
+  }
 
   const requestLines = [`        .${method}(${call})`, '        .set(getRequestHeaders())'];
   if (queryParams.length) {
@@ -477,6 +576,7 @@ function testSource(operation) {
     negatives.push({
       title: 'Negative Cases - Validation Errors',
       description: 'should return 422 when required fields are missing',
+      usesResolvedPath: true,
       request: [
         '      const response = await request(baseUrl)',
         `        .${method}(${call})`,
@@ -543,27 +643,22 @@ function testSource(operation) {
   if (generators.length) {
     lines.push(`const { ${generators.join(', ')} } = require('${relativeRoot}/data-generator/TestDataGenerator');`);
   }
+  const resolvers = [...emitter.uses].filter(name => name.startsWith('resolve')).sort();
+  if (resolvers.length) {
+    lines.push(`const { ${resolvers.join(', ')} } = require('${relativeRoot}/test-data/apiFixtures');`);
+  }
   lines.push('');
   lines.push('let baseUrl = process.env.BASE_URL;');
   lines.push("if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';");
   lines.push('');
 
-  for (const parameter of pathParameters(operation)) {
+  for (const parameter of unresolvedPathParameters) {
     lines.push(`const ${parameterVariable(parameter)} = process.env.${parameterEnvironmentName(parameter)};`);
   }
   for (const [variable, environmentName] of emitter.fixtures) {
     lines.push(`const ${variable} = process.env.${environmentName};`);
   }
-  if (pathArgs.length || emitter.fixtures.size) {
-    lines.push('');
-  }
-
-  if (queryParams.length) {
-    lines.push('const query = {};');
-    for (const parameter of queryParams) {
-      const environmentName = parameterEnvironmentName(parameter.name);
-      lines.push(`if (process.env.${environmentName}) query.${parameterVariable(parameter.name)} = process.env.${environmentName};`);
-    }
+  if (unresolvedPathParameters.length || emitter.fixtures.size) {
     lines.push('');
   }
 
@@ -572,8 +667,28 @@ function testSource(operation) {
   lines.push("  describe('Happy Path', function() {");
   lines.push('');
   lines.push(`    test(${javascriptString(`should return ${details.status} from ${operation.method.toUpperCase()} ${operation.path}`)}, async function() {`);
+  for (const [variable, resolver] of resolvedPathParameters) {
+    lines.push(`      const ${variable} = await ${resolver}();`);
+  }
+  if (resolvedPathParameters.size) {
+    lines.push('');
+  }
   if (requestLines.some(line => line.includes('testData.'))) {
     lines.push('      const testData = generateTestDataSet();');
+    lines.push('');
+  }
+  if (queryParams.length) {
+    lines.push('      const query = {};');
+    for (const parameter of queryParams) {
+      const variable = parameterVariable(parameter.name);
+      const resolver = fieldResolver(parameter.name);
+      if (resolver) {
+        lines.push(`      query.${variable} = await ${resolver}();`);
+      } else {
+        const environmentName = parameterEnvironmentName(parameter.name);
+        lines.push(`      if (process.env.${environmentName}) query.${variable} = process.env.${environmentName};`);
+      }
+    }
     lines.push('');
   }
   lines.push('      const response = await request(baseUrl)');
@@ -595,6 +710,14 @@ function testSource(operation) {
     lines.push(`  describe(${javascriptString(block.title)}, function() {`);
     lines.push('');
     lines.push(`    test(${javascriptString(block.description)}, async function() {`);
+    if (block.usesResolvedPath) {
+      for (const [variable, resolver] of resolvedPathParameters) {
+        lines.push(`      const ${variable} = await ${resolver}();`);
+      }
+      if (resolvedPathParameters.size) {
+        lines.push('');
+      }
+    }
     if (block.request.some(line => line.includes('testData.'))) {
       lines.push('      const testData = generateTestDataSet();');
       lines.push('');

@@ -2,6 +2,7 @@ const request = require('supertest');
 const { POS_REQUEST, STATUS } = require('../../../test-data/constants');
 const { getRequestHeaders } = require('../../../utilities/api');
 const { generateReference, generateTestDataSet } = require('../../../data-generator/TestDataGenerator');
+const { resolveInventoryId, resolveLinkedAccountId, resolveOutletId } = require('../../../test-data/apiFixtures');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
@@ -20,14 +21,14 @@ describe('PosRequest - Submit a standalone POS request without an outlet', funct
         .post(POS_REQUEST.POS_REQUESTS_AGENT)
         .set(getRequestHeaders())
         .send({
-          outletId: generateReference('cashhub'),
-          inventoryId: generateReference('cashhub'),
+          outletId: await resolveOutletId(),
+          inventoryId: await resolveInventoryId(),
           agentCode: agentCode,
           merchantCode: merchantCode,
           deliveryAddress: testData.deliveryAddress,
           deliveryContactName: testData.fullName,
           deliveryContactPhone: testData.deliveryContactPhone,
-          linkedAccountId: generateReference('cashhub'),
+          linkedAccountId: await resolveLinkedAccountId(),
           quantity: 1,
           idempotencyKey: generateReference('idempotencyKey'),
           correlationId: generateReference('cashhub')

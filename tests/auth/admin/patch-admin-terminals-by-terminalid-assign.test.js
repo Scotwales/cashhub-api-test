@@ -1,23 +1,23 @@
 const request = require('supertest');
 const { ADMIN, STATUS } = require('../../../test-data/constants');
 const { getRequestHeaders } = require('../../../utilities/api');
+const { resolveAccountNumber, resolveTerminalId } = require('../../../test-data/apiFixtures');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-
-const terminalId = process.env.CASHHUB_TEST_PARAM_TERMINAL_ID;
-const accountNumber = process.env.CASHHUB_TEST_DATA_ACCOUNT_NUMBER;
 
 describe('Admin - Assign an existing physical terminal to an AGENT/MERCHANT account', function() {
 
   describe('Happy Path', function() {
 
     test('should return 200 from PATCH /api/v1/admin/terminals/{terminalId}/assign', async function() {
+      const terminalId = await resolveTerminalId();
+
       const response = await request(baseUrl)
         .patch(ADMIN.TERMINALS_BY_TERMINAL_ID_ASSIGN(terminalId))
         .set(getRequestHeaders())
         .send({
-          accountNumber: accountNumber
+          accountNumber: await resolveAccountNumber()
         });
 
       expect(response.status).toBe(STATUS.OK);
@@ -50,7 +50,7 @@ describe('Admin - Assign an existing physical terminal to an AGENT/MERCHANT acco
         .patch(ADMIN.TERMINALS_BY_TERMINAL_ID_ASSIGN('00000000-0000-0000-0000-000000000000'))
         .set(getRequestHeaders())
         .send({
-          accountNumber: accountNumber
+          accountNumber: await resolveAccountNumber()
         });
 
       expect(response.status).toBe(STATUS.NOT_FOUND);

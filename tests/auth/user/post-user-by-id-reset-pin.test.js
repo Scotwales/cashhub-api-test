@@ -2,17 +2,18 @@ const request = require('supertest');
 const { USER, STATUS } = require('../../../test-data/constants');
 const { getRequestHeaders } = require('../../../utilities/api');
 const { generateReference } = require('../../../data-generator/TestDataGenerator');
+const { resolveUserId } = require('../../../test-data/apiFixtures');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-
-const id = process.env.CASHHUB_TEST_PARAM_ID;
 
 describe('User - POST /api/v1/User/{id}/reset-pin', function() {
 
   describe('Happy Path', function() {
 
     test('should return 200 from POST /api/v1/User/{id}/reset-pin', async function() {
+      const id = await resolveUserId();
+
       const response = await request(baseUrl)
         .post(USER.BY_ID_RESET_PIN(id))
         .set(getRequestHeaders())

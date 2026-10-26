@@ -2,11 +2,10 @@ const request = require('supertest');
 const { OTP, STATUS } = require('../../../test-data/constants');
 const { getRequestHeaders } = require('../../../utilities/api');
 const { generateReference } = require('../../../data-generator/TestDataGenerator');
+const { resolveAccountId } = require('../../../test-data/apiFixtures');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-
-const accountId = process.env.CASHHUB_TEST_DATA_ACCOUNT_ID;
 
 describe('Otp - Send an OTP to a user\'s phone (SMS) or email, resolved from the AccountId', function() {
 
@@ -17,7 +16,7 @@ describe('Otp - Send an OTP to a user\'s phone (SMS) or email, resolved from the
         .post(OTP.SEND_OTP)
         .set(getRequestHeaders())
         .send({
-          accountId: accountId,
+          accountId: await resolveAccountId(),
           purpose: generateReference('purpose'),
           mode: generateReference('mode')
         });

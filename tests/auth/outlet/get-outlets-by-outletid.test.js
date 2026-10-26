@@ -1,17 +1,18 @@
 const request = require('supertest');
 const { OUTLET, STATUS } = require('../../../test-data/constants');
 const { getRequestHeaders } = require('../../../utilities/api');
+const { resolveOutletId } = require('../../../test-data/apiFixtures');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-
-const outletId = process.env.CASHHUB_TEST_PARAM_OUTLET_ID;
 
 describe('Outlet - Outlet profile and terminals, float balance and performance', function() {
 
   describe('Happy Path', function() {
 
     test('should return 200 from GET /api/v1/outlets/{outletId}', async function() {
+      const outletId = await resolveOutletId();
+
       const response = await request(baseUrl)
         .get(OUTLET.GET_BY_OUTLET_ID(outletId))
         .set(getRequestHeaders());

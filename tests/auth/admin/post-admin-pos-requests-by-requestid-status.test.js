@@ -2,17 +2,18 @@ const request = require('supertest');
 const { ADMIN, STATUS } = require('../../../test-data/constants');
 const { getRequestHeaders } = require('../../../utilities/api');
 const { generateReference } = require('../../../data-generator/TestDataGenerator');
+const { resolveRequestId } = require('../../../test-data/apiFixtures');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-
-const requestId = process.env.CASHHUB_TEST_PARAM_REQUEST_ID;
 
 describe('Admin - Move the request through SUBMITTED → UNDER_REVIEW → APPROVED →', function() {
 
   describe('Happy Path', function() {
 
     test('should return 200 from POST /api/v1/admin/pos/requests/{requestId}/status', async function() {
+      const requestId = await resolveRequestId();
+
       const response = await request(baseUrl)
         .post(ADMIN.POS_REQUESTS_BY_REQUEST_ID_STATUS(requestId))
         .set(getRequestHeaders())

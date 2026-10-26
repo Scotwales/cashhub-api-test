@@ -1,17 +1,18 @@
 const request = require('supertest');
 const { ADMIN, STATUS } = require('../../../test-data/constants');
 const { getRequestHeaders } = require('../../../utilities/api');
+const { resolveInventoryId } = require('../../../test-data/apiFixtures');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-
-const inventoryId = process.env.CASHHUB_TEST_PARAM_INVENTORY_ID;
 
 describe('Admin - One catalog row: identity, pricing, imagery, description and both stock', function() {
 
   describe('Happy Path', function() {
 
     test('should return 200 from GET /api/v1/admin/pos/inventory/{inventoryId}', async function() {
+      const inventoryId = await resolveInventoryId();
+
       const response = await request(baseUrl)
         .get(ADMIN.GET_POS_INVENTORY_BY_INVENTORY_ID(inventoryId))
         .set(getRequestHeaders());

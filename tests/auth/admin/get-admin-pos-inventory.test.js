@@ -5,17 +5,17 @@ const { getRequestHeaders } = require('../../../utilities/api');
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
 
-const query = {};
-if (process.env.CASHHUB_TEST_PARAM_IS_ACTIVE) query.isActive = process.env.CASHHUB_TEST_PARAM_IS_ACTIVE;
-if (process.env.CASHHUB_TEST_PARAM_SEARCH) query.search = process.env.CASHHUB_TEST_PARAM_SEARCH;
-if (process.env.CASHHUB_TEST_PARAM_PAGE) query.page = process.env.CASHHUB_TEST_PARAM_PAGE;
-if (process.env.CASHHUB_TEST_PARAM_PAGE_SIZE) query.pageSize = process.env.CASHHUB_TEST_PARAM_PAGE_SIZE;
-
 describe('Admin - Paged catalog rows for admin management', function() {
 
   describe('Happy Path', function() {
 
     test('should return 200 from GET /api/v1/admin/pos/inventory', async function() {
+      const query = {};
+      if (process.env.CASHHUB_TEST_PARAM_IS_ACTIVE) query.isActive = process.env.CASHHUB_TEST_PARAM_IS_ACTIVE;
+      if (process.env.CASHHUB_TEST_PARAM_SEARCH) query.search = process.env.CASHHUB_TEST_PARAM_SEARCH;
+      if (process.env.CASHHUB_TEST_PARAM_PAGE) query.page = process.env.CASHHUB_TEST_PARAM_PAGE;
+      if (process.env.CASHHUB_TEST_PARAM_PAGE_SIZE) query.pageSize = process.env.CASHHUB_TEST_PARAM_PAGE_SIZE;
+
       const response = await request(baseUrl)
         .get(ADMIN.GET_POS_INVENTORY)
         .set(getRequestHeaders())

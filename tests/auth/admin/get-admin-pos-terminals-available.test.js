@@ -1,18 +1,19 @@
 const request = require('supertest');
 const { ADMIN, STATUS } = require('../../../test-data/constants');
 const { getRequestHeaders } = require('../../../utilities/api');
+const { resolveModelCode } = require('../../../test-data/apiFixtures');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-
-const query = {};
-if (process.env.CASHHUB_TEST_PARAM_MODEL_CODE) query.modelCode = process.env.CASHHUB_TEST_PARAM_MODEL_CODE;
 
 describe('Admin - Pool terminals that can still be issued, oldest receipt first, optionally', function() {
 
   describe('Happy Path', function() {
 
     test('should return 200 from GET /api/v1/admin/pos/terminals/available', async function() {
+      const query = {};
+      query.modelCode = await resolveModelCode();
+
       const response = await request(baseUrl)
         .get(ADMIN.GET_POS_TERMINALS_AVAILABLE)
         .set(getRequestHeaders())

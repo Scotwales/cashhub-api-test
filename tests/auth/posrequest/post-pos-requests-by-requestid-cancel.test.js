@@ -1,17 +1,18 @@
 const request = require('supertest');
 const { POS_REQUEST, STATUS } = require('../../../test-data/constants');
 const { getRequestHeaders } = require('../../../utilities/api');
+const { resolveRequestId } = require('../../../test-data/apiFixtures');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-
-const requestId = process.env.CASHHUB_TEST_PARAM_REQUEST_ID;
 
 describe('PosRequest - Agent cancels own request — only while SUBMITTED or UNDER_REVIEW', function() {
 
   describe('Happy Path', function() {
 
     test('should return 200 from POST /api/v1/pos/requests/{requestId}/cancel', async function() {
+      const requestId = await resolveRequestId();
+
       const response = await request(baseUrl)
         .post(POS_REQUEST.POS_REQUESTS_BY_REQUEST_ID_CANCEL(requestId))
         .set(getRequestHeaders());

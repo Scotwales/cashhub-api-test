@@ -6,7 +6,6 @@ const { generateTestDataSet } = require('../../../data-generator/TestDataGenerat
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
 
-const modelCode = process.env.CASHHUB_TEST_DATA_MODEL_CODE;
 const image = process.env.CASHHUB_TEST_FILE_IMAGE;
 
 describe('Admin - Registers a catalog model', function() {
@@ -20,7 +19,7 @@ describe('Admin - Registers a catalog model', function() {
         .post(ADMIN.POST_POS_INVENTORY)
         .set(getRequestHeaders())
         .field('ProductName', String(testData.productName))
-        .field('ModelCode', String(modelCode))
+        .field('ModelCode', String(testData.modelCode))
         .field('UnitPrice', String(1))
         .attach('Image', image)
         .field('Description', String(testData.description))

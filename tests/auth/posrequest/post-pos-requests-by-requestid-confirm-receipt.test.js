@@ -2,17 +2,18 @@ const request = require('supertest');
 const { POS_REQUEST, STATUS } = require('../../../test-data/constants');
 const { getRequestHeaders } = require('../../../utilities/api');
 const { generateReference } = require('../../../data-generator/TestDataGenerator');
+const { resolveRequestId } = require('../../../test-data/apiFixtures');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-
-const requestId = process.env.CASHHUB_TEST_PARAM_REQUEST_ID;
 
 describe('PosRequest - Agent confirms receipt of the delivered device — closes the request', function() {
 
   describe('Happy Path', function() {
 
     test('should return 200 from POST /api/v1/pos/requests/{requestId}/confirm-receipt', async function() {
+      const requestId = await resolveRequestId();
+
       const response = await request(baseUrl)
         .post(POS_REQUEST.POS_REQUESTS_BY_REQUEST_ID_CONFIRM_RECEIPT(requestId))
         .set(getRequestHeaders())

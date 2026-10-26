@@ -1,11 +1,11 @@
 const request = require('supertest');
 const { TERMINAL, STATUS } = require('../../../test-data/constants');
 const { getRequestHeaders } = require('../../../utilities/api');
+const { resolveTerminalId } = require('../../../test-data/apiFixtures');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
 
-const terminalId = process.env.CASHHUB_TEST_DATA_TERMINAL_ID;
 const encryptedPasskey = process.env.CASHHUB_TEST_DATA_ENCRYPTED_PASSKEY;
 
 describe('Terminal - POST /api/v1/Terminal/passkey/verify', function() {
@@ -17,7 +17,7 @@ describe('Terminal - POST /api/v1/Terminal/passkey/verify', function() {
         .post(TERMINAL.PASSKEY_VERIFY)
         .set(getRequestHeaders())
         .send({
-          terminalId: terminalId,
+          terminalId: await resolveTerminalId(),
           encryptedPasskey: encryptedPasskey
         });
 

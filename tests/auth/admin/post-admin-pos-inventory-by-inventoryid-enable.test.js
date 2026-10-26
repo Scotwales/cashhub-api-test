@@ -1,17 +1,18 @@
 const request = require('supertest');
 const { ADMIN, STATUS } = require('../../../test-data/constants');
 const { getRequestHeaders } = require('../../../utilities/api');
+const { resolveInventoryId } = require('../../../test-data/apiFixtures');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-
-const inventoryId = process.env.CASHHUB_TEST_PARAM_INVENTORY_ID;
 
 describe('Admin - Re-activates a disabled item: is_active → true — selectable for new requests again', function() {
 
   describe('Happy Path', function() {
 
     test('should return 200 from POST /api/v1/admin/pos/inventory/{inventoryId}/enable', async function() {
+      const inventoryId = await resolveInventoryId();
+
       const response = await request(baseUrl)
         .post(ADMIN.POS_INVENTORY_BY_INVENTORY_ID_ENABLE(inventoryId))
         .set(getRequestHeaders());

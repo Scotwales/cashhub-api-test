@@ -2,11 +2,10 @@ const request = require('supertest');
 const { TERMINAL, STATUS } = require('../../../test-data/constants');
 const { getRequestHeaders } = require('../../../utilities/api');
 const { generateReference } = require('../../../data-generator/TestDataGenerator');
+const { resolveTerminalId } = require('../../../test-data/apiFixtures');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-
-const terminalId = process.env.CASHHUB_TEST_DATA_TERMINAL_ID;
 
 describe('Terminal - POST /api/v1/Terminal/deactivate', function() {
 
@@ -17,7 +16,7 @@ describe('Terminal - POST /api/v1/Terminal/deactivate', function() {
         .post(TERMINAL.DEACTIVATE)
         .set(getRequestHeaders())
         .send({
-          terminalId: terminalId,
+          terminalId: await resolveTerminalId(),
           reason: generateReference('reason')
         });
 

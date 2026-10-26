@@ -1,17 +1,18 @@
 const request = require('supertest');
 const { ADMIN, STATUS } = require('../../../test-data/constants');
 const { getRequestHeaders } = require('../../../utilities/api');
+const { resolveTerminalRef } = require('../../../test-data/apiFixtures');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-
-const terminalRef = process.env.CASHHUB_TEST_PARAM_TERMINAL_REF;
 
 describe('Admin - Removes a device from the pool and returns its stock', function() {
 
   describe('Happy Path', function() {
 
     test('should return 200 from DELETE /api/v1/admin/pos/terminals/available/{terminal-ref}', async function() {
+      const terminalRef = await resolveTerminalRef();
+
       const response = await request(baseUrl)
         .delete(ADMIN.DELETE_POS_TERMINALS_AVAILABLE_BY_TERMINAL_REF(terminalRef))
         .set(getRequestHeaders());

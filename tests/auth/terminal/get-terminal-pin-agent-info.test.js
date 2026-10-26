@@ -1,19 +1,20 @@
 const request = require('supertest');
 const { TERMINAL, STATUS } = require('../../../test-data/constants');
 const { getRequestHeaders } = require('../../../utilities/api');
+const { resolveAccountId, resolveTerminalId } = require('../../../test-data/apiFixtures');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-
-const query = {};
-if (process.env.CASHHUB_TEST_PARAM_ACCOUNT_ID) query.accountId = process.env.CASHHUB_TEST_PARAM_ACCOUNT_ID;
-if (process.env.CASHHUB_TEST_PARAM_TERMINAL_ID) query.terminalId = process.env.CASHHUB_TEST_PARAM_TERMINAL_ID;
 
 describe('Terminal - GET /api/v1/Terminal/pin/agent-info', function() {
 
   describe('Happy Path', function() {
 
     test('should return 200 from GET /api/v1/Terminal/pin/agent-info', async function() {
+      const query = {};
+      query.accountId = await resolveAccountId();
+      query.terminalId = await resolveTerminalId();
+
       const response = await request(baseUrl)
         .get(TERMINAL.PIN_AGENT_INFO)
         .set(getRequestHeaders())

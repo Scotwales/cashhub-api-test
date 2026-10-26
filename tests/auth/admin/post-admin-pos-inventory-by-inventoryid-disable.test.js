@@ -1,17 +1,18 @@
 const request = require('supertest');
 const { ADMIN, STATUS } = require('../../../test-data/constants');
 const { getRequestHeaders } = require('../../../utilities/api');
+const { resolveInventoryId } = require('../../../test-data/apiFixtures');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-
-const inventoryId = process.env.CASHHUB_TEST_PARAM_INVENTORY_ID;
 
 describe('Admin - Sets is_active = false — cannot be selected for new requests; historical requests remain intact', function() {
 
   describe('Happy Path', function() {
 
     test('should return 200 from POST /api/v1/admin/pos/inventory/{inventoryId}/disable', async function() {
+      const inventoryId = await resolveInventoryId();
+
       const response = await request(baseUrl)
         .post(ADMIN.POS_INVENTORY_BY_INVENTORY_ID_DISABLE(inventoryId))
         .set(getRequestHeaders());

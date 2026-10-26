@@ -1,12 +1,10 @@
 const request = require('supertest');
 const { TERMINAL, STATUS } = require('../../../test-data/constants');
 const { getRequestHeaders } = require('../../../utilities/api');
+const { resolveAccountId, resolveTerminalId } = require('../../../test-data/apiFixtures');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-
-const accountId = process.env.CASHHUB_TEST_DATA_ACCOUNT_ID;
-const terminalId = process.env.CASHHUB_TEST_DATA_TERMINAL_ID;
 
 describe('Terminal - POST /api/v1/Terminal/pin/forgot', function() {
 
@@ -17,8 +15,8 @@ describe('Terminal - POST /api/v1/Terminal/pin/forgot', function() {
         .post(TERMINAL.PIN_FORGOT)
         .set(getRequestHeaders())
         .send({
-          accountId: accountId,
-          terminalId: terminalId
+          accountId: await resolveAccountId(),
+          terminalId: await resolveTerminalId()
         });
 
       expect(response.status).toBe(STATUS.OK);

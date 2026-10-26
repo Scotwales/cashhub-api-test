@@ -1,17 +1,18 @@
 const request = require('supertest');
 const { TERMINAL, STATUS } = require('../../../test-data/constants');
 const { getRequestHeaders } = require('../../../utilities/api');
+const { resolveTerminalId } = require('../../../test-data/apiFixtures');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-
-const terminalId = process.env.CASHHUB_TEST_PARAM_TERMINAL_ID;
 
 describe('Terminal - GET /api/v1/Terminal/{terminalId}/status', function() {
 
   describe('Happy Path', function() {
 
     test('should return 200 from GET /api/v1/Terminal/{terminalId}/status', async function() {
+      const terminalId = await resolveTerminalId();
+
       const response = await request(baseUrl)
         .get(TERMINAL.BY_TERMINAL_ID_STATUS(terminalId))
         .set(getRequestHeaders());

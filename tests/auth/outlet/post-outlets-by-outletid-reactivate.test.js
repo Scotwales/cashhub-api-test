@@ -1,17 +1,18 @@
 const request = require('supertest');
 const { OUTLET, STATUS } = require('../../../test-data/constants');
 const { getRequestHeaders } = require('../../../utilities/api');
+const { resolveOutletId } = require('../../../test-data/apiFixtures');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-
-const outletId = process.env.CASHHUB_TEST_PARAM_OUTLET_ID;
 
 describe('Outlet - Merchant-initiated reactivation — INACTIVE → ACTIVE only', function() {
 
   describe('Happy Path', function() {
 
     test('should return 200 from POST /api/v1/outlets/{outletId}/reactivate', async function() {
+      const outletId = await resolveOutletId();
+
       const response = await request(baseUrl)
         .post(OUTLET.BY_OUTLET_ID_REACTIVATE(outletId))
         .set(getRequestHeaders());

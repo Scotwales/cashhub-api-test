@@ -2,17 +2,18 @@ const request = require('supertest');
 const { OUTLET, STATUS } = require('../../../test-data/constants');
 const { getRequestHeaders } = require('../../../utilities/api');
 const { generateTestDataSet } = require('../../../data-generator/TestDataGenerator');
+const { resolveOutletId } = require('../../../test-data/apiFixtures');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-
-const outletId = process.env.CASHHUB_TEST_PARAM_OUTLET_ID;
 
 describe('Outlet - Edits address and contact details', function() {
 
   describe('Happy Path', function() {
 
     test('should return 200 from PUT /api/v1/outlets/{outletId}', async function() {
+      const outletId = await resolveOutletId();
+
       const testData = generateTestDataSet();
 
       const response = await request(baseUrl)

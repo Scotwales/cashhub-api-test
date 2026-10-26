@@ -5,14 +5,14 @@ const { getRequestHeaders } = require('../../../utilities/api');
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
 
-const query = {};
-if (process.env.CASHHUB_TEST_PARAM_STATUS) query.status = process.env.CASHHUB_TEST_PARAM_STATUS;
-
 describe('Terminal - GET /api/v1/Terminal/user-terminals', function() {
 
   describe('Happy Path', function() {
 
     test('should return 200 from GET /api/v1/Terminal/user-terminals', async function() {
+      const query = {};
+      if (process.env.CASHHUB_TEST_PARAM_STATUS) query.status = process.env.CASHHUB_TEST_PARAM_STATUS;
+
       const response = await request(baseUrl)
         .get(TERMINAL.USER_TERMINALS)
         .set(getRequestHeaders())

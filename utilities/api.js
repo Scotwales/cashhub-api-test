@@ -1,5 +1,13 @@
 const config = require('../config/config');
 
+function getBaseUrl() {
+  const baseUrl = (process.env.BASE_URL || '').trim();
+  if (!baseUrl) {
+    return '';
+  }
+  return baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+}
+
 function getRequestHeaders({ body, headers = {} } = {}) {
   const result = {
     Accept: 'application/json',
@@ -15,5 +23,6 @@ function getRequestHeaders({ body, headers = {} } = {}) {
 }
 
 module.exports = {
+  getBaseUrl,
   getRequestHeaders
 };

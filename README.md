@@ -6,7 +6,7 @@ This repository contains the Cashhub API tests on the Smartsend test-runner arch
 
 - Node.js 18 or newer
 - npm
-- A Cashhub API base URL and test fixtures when running integration tests
+- A Cashhub API base URL when running integration tests
 
 ## Setup
 
@@ -15,11 +15,15 @@ npm ci
 cp .env.example .env
 ```
 
-Set `BASE_URL` to the API service root and only use a CashHub JWT with the `Bearer` scheme. The Swagger document does not define OAuth client credentials. Set `API_TOKEN` for authenticated operations and `CASHHUB_TEST_PARAM_<PATH_PARAMETER>` for operations requiring resource IDs.
+Set `BASE_URL` to the API service root and only use a CashHub JWT with the `Bearer` scheme. The Swagger document does not define OAuth client credentials. Set `API_TOKEN` for authenticated operations.
 
-Values that can be generated without configuration come from `generateTestDataSet()` in `data-generator/TestDataGenerator.js`: unique names, emails, usernames, phone numbers, addresses, device identifiers, registration and password-change passwords, and references. Do not add environment variables for these. Use `CASHHUB_TEST_DATA_<FIELD>` only for values the generator cannot know - real resource IDs, session/refresh tokens, OTPs, PINs, and upload fixtures. Supply those values from a disposable test environment rather than production.
+Values that can be generated without configuration come from `generateTestDataSet()` in `data-generator/TestDataGenerator.js`: unique names, emails, usernames, phone numbers, addresses, device identifiers, registration and password-change passwords, and references. Do not add environment variables for these.
 
-Selecting a suite runs every test in it. Point `BASE_URL` at a disposable environment before running non-GET operations. Tests that reference a missing resource or secret fail rather than silently skipping, so configure the fixtures they need first.
+Resource identifiers used in paths, query strings, and request bodies are resolved by `test-data/apiFixtures.js`. For each identifier the resolver returns `CASHHUB_TEST_PARAM_<NAME>` or `CASHHUB_TEST_DATA_<FIELD>` when set, otherwise fetches a matching record, and finally creates one through the API when the contract allows it. The cache is per test file, so setup happens once and is reused by every test in that file. A test only fails to resolve an identifier when the environment has no usable record, creation is not possible, and no override is set; the error names the override to configure.
+
+Use `CASHHUB_TEST_DATA_<FIELD>` for values the resolver cannot invent - session/refresh tokens, OTPs, PINs, partner codes, and upload fixtures - or to pin a known record. Supply those values from a disposable test environment rather than production.
+
+Selecting a suite runs every test in it. Point `BASE_URL` at a disposable environment before running non-GET operations: resolvers may create prerequisite users, outlets, inventory, terminals, or POS requests when no record exists. Tests that reference a missing secret fail rather than silently skipping, so configure secrets first.
 
 ## Commands
 
@@ -61,7 +65,8 @@ Remove the flag once the test should run again.
 - `runTestsCashhub.js` and `test.config.cashhub.js`: Smartsend-style target-based suite selection.
 - `jest.config.cashhub.js`, `jest.setup.js`, and `babel.config.js`: Jest, Babel, request logging, and HTML/JUnit reporting configuration.
 - `data-generator/TestDataGenerator.js`: shared generators and `generateTestDataSet()`, the utility that builds unique, internally consistent values without environment variables.
-- `utilities/api.js`: request-header builder, including optional bearer authentication.
+- `utilities/api.js`: base-URL normalization and request-header builder, including optional bearer authentication.
+- `test-data/apiFixtures.js`: resolver/factory for resource identifiers. Each resolver prefers an environment override, then an existing record, then creates the prerequisite over HTTP.
 - `utilities/logger.js`: captures request/response details for terminal and HTML reports, redacting sensitive fields.
 - `openapi/cashhub-authentication.json`: API contract used by the offline contract tests and by the operation-test generator.
 - `test-data/constants.js`: endpoint constants per OpenAPI tag and the shared `STATUS` map. Generated alongside the operation tests.
@@ -73,7 +78,7 @@ Remove the flag once the test should run again.
 - `tests/auth/<tag>/run-tests-in-order.test.js`: runs that folder in order and can also be required by the parent suite.
 - `tests/auth/authentication/`: the Auth-tag operations plus `authentication.contract.test.js` (offline) and `authentication.integration.test.js` (needs `BASE_URL` and test credentials).
 
-Every API operation has its own Jest test file written in the Smartsend style: the endpoint comes from `test-data/constants.js`, generated request data comes from `generateTestDataSet()`, and plain `describe`/`test` blocks avoid hidden skip behaviour. The documented happy path is paired with the negative cases the OpenAPI response codes make testable (404 for path-parameter operations, 401/403 for operations that document authentication failures). Request data that must reference an existing record, token, OTP, PIN, or upload file is read from the fixture environment variables instead of being invented.
+Every API operation has its own Jest test file written in the Smartsend style: the endpoint comes from `test-data/constants.js`, generated request data comes from `generateTestDataSet()`, and plain `describe`/`test` blocks avoid hidden skip behaviour. The documented happy path is paired with the negative cases the OpenAPI response codes make testable (404 for path-parameter operations, 401/403 for operations that document authentication failures). Path, query, and body resource identifiers call the resolvers in `test-data/apiFixtures.js`, which use an environment override when supplied, otherwise fetch an existing record, otherwise create the prerequisite. Only tokens, OTPs, PINs, partner codes, and upload files are read directly from the environment because the API cannot provide or invent them.
 
 Regenerate the operation tests after updating the schema with `npm run generate:operation-tests`; the generator writes each file into the matching tag folder and keeps relative imports correct at any depth.
 
