@@ -4,8 +4,10 @@
   "private": true,
   "description": "API test framework for Cashhub",
   "scripts": {
-    "test": "jest --runInBand --config jest.config.cashhub.js",
-    "test:ci": "jest --runInBand --config jest.config.cashhub.js",
+    "test": "node runTestsCashhub.js",
+    "test:ci": "node runTestsCashhub.js all",
+    "test:cashhub": "node runTestsCashhub.js all",
+    "test:direct": "npx jest --runInBand --config jest.config.cashhub.js",
     "generate:operation-tests": "node scripts/generate-operation-tests.js"
   },
   "engines": {
@@ -16,7 +18,12 @@
     "supertest": "^7.1.4"
   },
   "devDependencies": {
-    "jest": "^30.5.2",
+    "@babel/core": "^7.29.7",
+    "@babel/preset-env": "^7.29.7",
+    "@faker-js/faker": "^10.4.0",
+    "babel-jest": "^29.7.0",
+    "chai": "^4.5.0",
+    "jest": "^29.7.0",
     "jest-html-reporters": "^3.1.7",
     "jest-junit": "^16.0.0"
   }

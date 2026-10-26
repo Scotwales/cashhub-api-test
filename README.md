@@ -1,6 +1,6 @@
 # Cashhub API Test Framework
 
-This repository contains a Jest and SuperTest framework following the approved Open Banking test-suite architecture, with per-operation contract checks and opt-in integration tests for the CashHub Authentication API.
+This repository contains the Cashhub API tests on the Smartsend test-runner architecture: Jest with Babel, a target-based runner, serialized execution, and HTML/JUnit reports. The Cashhub operation contract and payloads remain based on the Cashhub OpenAPI schema; the Smartsend schemas describe a different API and are not interchangeable.
 
 ## Requirements
 
@@ -22,16 +22,21 @@ GET operations can run when the base URL, authentication, and required resource 
 ## Commands
 
 ```sh
-npm test
+npm test -- all
+npm test -- auth
+npm test -- admin
 npm run test:ci
+npm run test:direct -- tests/auth/post-auth-login.test.js
 npm run generate:operation-tests
 ```
 
-Jest HTML reports are written to `reports/`; CI runs also produce `reports/ci/junit.xml`. Reports, generated coverage, dependencies, and `.env` are ignored by Git.
+The target-based runner in `runTestsCashhub.js` accepts `all`, suite targets (`admin`, `auth`, `notification`, `otp`, `outlet`, `pos`, `posauth`, `posavailableterminal`, `posinventory`, `posrequest`, `terminal`, `user`, and `framework`), and groups (`smoke`, `regression`, `auth`, `operations`). Jest runs in-band. HTML reports are written to `reports/`; CI writes HTML and `reports/ci/junit.xml`. Coverage output is written to `reports/coverage-compliance/` locally and `reports/ci/coverage-compliance/` in CI.
 
 ## Framework layout
 
 - `config/config.js`: loads project environment settings.
+- `runTestsCashhub.js` and `test.config.cashhub.js`: Smartsend-style target-based suite selection.
+- `jest.config.cashhub.js` and `babel.config.js`: Jest, Babel, and HTML/JUnit reporting configuration.
 - `data-generator/`: reusable, API-neutral test-data generation.
 - `utilities/api.js`: SuperTest request helper with optional authentication.
 - `utilities/logger.js`: captures request/response details for terminal and HTML reports, redacting sensitive fields.
