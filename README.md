@@ -32,11 +32,18 @@ npm run generate:operation-tests
 
 The target-based runner in `runTestsCashhub.js` accepts `all`, suite targets (`admin`, `auth`, `notification`, `otp`, `outlet`, `pos`, `posauth`, `posavailableterminal`, `posinventory`, `posrequest`, `terminal`, `user`, and `framework`), and groups (`smoke`, `regression`, `auth`, `operations`). Jest runs in-band. HTML reports are written to `reports/`; CI writes HTML and `reports/ci/junit.xml`. Coverage output is written to `reports/coverage-compliance/` locally and `reports/ci/coverage-compliance/` in CI.
 
+## Continuous integration
+
+`npm run test:ci` runs the whole suite in-band. When `CI` or `GITHUB_ACTIONS` is set, `jest.config.cashhub.js` switches the report and coverage paths to `reports/ci/` and adds the JUnit reporter, matching the Smartsend CI setup.
+
+`.github/workflows/api-tests.yml` runs the same steps on every invocation: install with `npm ci`, run `npm run test:ci`, and upload `reports/` as the `cashhub-api-test-reports` artifact for 14 days. Set the `TEST_REPO_DOT_ENV` secret to a base64-encoded `.env` to supply integration credentials; without it the workflow copies `.env.example` and only the offline contract and framework tests exercise the API.
+
 ## Framework layout
 
 - `config/config.js`: loads project environment settings.
 - `runTestsCashhub.js` and `test.config.cashhub.js`: Smartsend-style target-based suite selection.
 - `jest.config.cashhub.js` and `babel.config.js`: Jest, Babel, and HTML/JUnit reporting configuration.
+- `jest.global-setup.js`: creates an isolated fixture directory for each run. The Smartsend replica ships an equivalent file but never references it from its Jest config; this port wires it in so `utilities/sharedFixtures.js` does not reuse another run's data.
 - `data-generator/`: reusable, API-neutral test-data generation.
 - `utilities/api.js`: SuperTest request helper with optional authentication.
 - `utilities/logger.js`: captures request/response details for terminal and HTML reports, redacting sensitive fields.
