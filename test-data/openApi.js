@@ -1,4 +1,5 @@
 const api = require('../openapi/cashhub-authentication.json');
+const { createHash } = require('crypto');
 
 const HTTP_METHODS = new Set(['get', 'post', 'put', 'patch', 'delete', 'head', 'options']);
 
@@ -6,6 +7,9 @@ const API_OPERATIONS = Object.entries(api.paths).flatMap(([path, pathItem]) =>
   Object.entries(pathItem)
     .filter(([method]) => HTTP_METHODS.has(method))
     .map(([method, operation]) => ({
+      api,
+      id: `op_${createHash('sha256').update(`${method}\n${path}`).digest('hex').slice(0, 12)}`,
+      tag: operation.tags?.[0] || 'untagged',
       method,
       path,
       operation

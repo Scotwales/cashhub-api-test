@@ -1,7 +1,6 @@
-const { API_OPERATIONS } = require('./openApi');
 const config = require('../config/config');
-
-const GET_OPERATIONS = API_OPERATIONS.filter(({ method }) => method === 'get');
+const request = require('supertest');
+const { getRequestHeaders } = require('../utilities/api');
 
 function parameterEnvironmentName(name) {
   const normalized = name.replace(/([a-z0-9])([A-Z])/g, '$1_$2')
@@ -18,7 +17,7 @@ function parameterValue(name) {
   return process.env[parameterEnvironmentName(name)] || undefined;
 }
 
-function missingPathParameters({ path, operation }) {
+function missingPathParameters({ path }) {
   return [...path.matchAll(/\{([^}]+)\}/g)]
     .map(([, name]) => name)
     .filter(name => !parameterValue(name));
@@ -49,20 +48,30 @@ function documentsStatus(operation, status) {
   return Object.hasOwn(operation.responses, String(status));
 }
 
-const LIVE_GET_OPERATIONS = config.baseUrl
-  ? GET_OPERATIONS.filter(operation => missingPathParameters(operation).length === 0)
-  : [];
-const SKIPPED_GET_OPERATIONS = GET_OPERATIONS.filter(operation =>
-  !config.baseUrl || missingPathParameters(operation).length > 0
-);
+function registerSafeGetIntegrationTest(operation) {
+  const unavailableReason = !config.baseUrl
+    ? 'BASE_URL is not configured'
+    : missingPathParameters(operation).length > 0
+      ? 'required path parameter values are not configured'
+      : null;
+  const register = unavailableReason ? test.skip : test;
+  const summary = operation.operation.summary || 'documented GET operation';
+
+  register(`live GET: ${summary}`, async () => {
+    const response = await request(config.baseUrl)
+      .get(buildOperationPath(operation))
+      .query(createOperationQuery(operation))
+      .set(getRequestHeaders());
+
+    expect(documentsStatus(operation.operation, response.status)).toBe(true);
+  });
+}
 
 module.exports = {
-  GET_OPERATIONS,
-  LIVE_GET_OPERATIONS,
-  SKIPPED_GET_OPERATIONS,
   buildOperationPath,
   createOperationQuery,
   documentsStatus,
   missingPathParameters,
-  parameterEnvironmentName
+  parameterEnvironmentName,
+  registerSafeGetIntegrationTest
 };

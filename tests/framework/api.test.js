@@ -13,7 +13,8 @@ describe('API request helpers', () => {
   });
 
   test('rejects absolute URLs instead of allowing a request to another host', () => {
-    expect(() => buildPath('https://example.com/v1/accounts'))
+    const absoluteUrl = new URL(FRAMEWORK_TEST_PATHS.QUERY_ENCODING, 'https://example.com').toString();
+    expect(() => buildPath(absoluteUrl))
       .toThrow('API paths must be relative paths beginning with a single slash.');
   });
 

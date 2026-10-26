@@ -1,5 +1,6 @@
-const api = require('../../openapi/cashhub-authentication.json');
+const { api } = require('../../test-data/openApi');
 const { AUTH, OTP } = require('../../test-data/constants');
+const { assertOperationContract, getOperationById } = require('../../test-data/operationContract');
 
 function requestSchema(path, method = 'post') {
   const operation = api.paths[path]?.[method];
@@ -7,7 +8,7 @@ function requestSchema(path, method = 'post') {
   if (!schema?.$ref) {
     throw new Error(`No JSON request schema is documented for ${method.toUpperCase()} ${path}.`);
   }
-  return api.components.schemas[schema.$ref.split('/').pop()];
+  return resolveSchema(schema);
 }
 
 function responseSchema(path, method, statusCode) {
@@ -16,7 +17,14 @@ function responseSchema(path, method, statusCode) {
   if (!schema?.$ref) {
     throw new Error(`No JSON ${statusCode} response schema is documented for ${method.toUpperCase()} ${path}.`);
   }
-  return api.components.schemas[schema.$ref.split('/').pop()];
+  return resolveSchema(schema);
+}
+
+function resolveSchema(schema) {
+  if (schema.$ref) {
+    return api.components.schemas[schema.$ref.split('/').pop()];
+  }
+  return schema;
 }
 
 describe('CashHub Authentication API contract', () => {
@@ -65,5 +73,17 @@ describe('CashHub Authentication API contract', () => {
       'sessionToken'
     ]);
     expect(api.paths[OTP.VERIFY].post.responses).toHaveProperty('429');
+  });
+
+  test('keeps one standalone test file for every documented API operation', () => {
+    const { API_OPERATIONS } = require('../../test-data/openApi');
+    const { operationTestPath } = require('../../test-data/operationContract');
+    const fs = require('fs');
+
+    expect(API_OPERATIONS).toHaveLength(90);
+    for (const operation of API_OPERATIONS) {
+      expect(fs.existsSync(operationTestPath(operation))).toBe(true);
+      expect(() => assertOperationContract(getOperationById(operation.id))).not.toThrow();
+    }
   });
 });

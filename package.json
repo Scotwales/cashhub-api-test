@@ -5,7 +5,8 @@
   "description": "API test framework for Cashhub",
   "scripts": {
     "test": "jest --runInBand --config jest.config.cashhub.js",
-    "test:ci": "jest --runInBand --config jest.config.cashhub.js"
+    "test:ci": "jest --runInBand --config jest.config.cashhub.js",
+    "generate:operation-tests": "node scripts/generate-operation-tests.js"
   },
   "engines": {
     "node": ">=18"

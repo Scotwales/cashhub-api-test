@@ -14,14 +14,6 @@ function createLoginPayload() {
   };
 }
 
-function createUsernameQuery() {
-  if (!config.testUsername) {
-    throw new Error('CASHHUB_TEST_USERNAME is required for availability test data.');
-  }
-  return { username: config.testUsername };
-}
-
 module.exports = {
-  createLoginPayload,
-  createUsernameQuery
+  createLoginPayload
 };
