@@ -73,5 +73,6 @@ module.exports = {
   documentsStatus,
   missingPathParameters,
   parameterEnvironmentName,
+  parameterValue,
   registerSafeGetIntegrationTest
 };

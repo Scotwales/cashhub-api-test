@@ -15,7 +15,9 @@ npm ci
 cp .env.example .env
 ```
 
-Set `BASE_URL` to the API service root and only use a CashHub JWT with the `Bearer` scheme. The Swagger document does not define OAuth client credentials. Set `CASHHUB_TEST_USERNAME` and `CASHHUB_TEST_PASSWORD` to enable the opt-in login integration case. Set `CASHHUB_TEST_PARAM_<PATH_PARAMETER>` for GET operations requiring resource IDs. Use a dedicated test account; tests do not register users, request OTPs, change PINs/passwords, or invalidate sessions.
+Set `BASE_URL` to the API service root and only use a CashHub JWT with the `Bearer` scheme. The Swagger document does not define OAuth client credentials. Set `API_TOKEN` for authenticated operations and `CASHHUB_TEST_PARAM_<PATH_PARAMETER>` for operations requiring resource IDs. The request-data builder creates schema-informed values and supports explicit `CASHHUB_TEST_DATA_<FIELD>` overrides. Supply required credentials, OTP/PIN/session values, related resource IDs, and upload fixtures using dedicated test data rather than production values.
+
+GET operations can run when the base URL, authentication, and required resource IDs are configured. All non-GET operations require `CASHHUB_ENABLE_MUTATION_TESTS=true`; configure a disposable test environment before enabling them. Tests needing unconfigured values or upload files are skipped with the missing fixture named.
 
 ## Commands
 
@@ -37,12 +39,12 @@ Jest HTML reports are written to `reports/`; CI runs also produce `reports/ci/ju
 - `utilities/sharedFixtures.js`: isolated, permission-restricted fixture storage for a test run.
 - `utilities/url.js`: URL validation helper.
 - `openapi/cashhub-authentication.json`: API contract used by offline contract and operation tests.
-- `test-data/`: API endpoint constants and authentication payload factories based on the OpenAPI contract.
-- `tests/<openapi-tag>/`: one standalone Jest file per documented API operation, grouped by the operation's OpenAPI tag; safe GET integrations are individually skipped until configured. Regenerate these files after updating the schema with `npm run generate:operation-tests`.
+- `test-data/`: API endpoint mappings, schema-informed request-data builders, and authentication payload factories based on the OpenAPI contract.
+- `tests/<openapi-tag>/`: one standalone Jest file per documented API operation, grouped by the operation's OpenAPI tag; integrations are individually skipped until their environment and test data are configured. Regenerate these files after updating the schema with `npm run generate:operation-tests`.
 - `tests/auth/`: authentication contract and opt-in login tests.
 - `tests/framework/`: offline tests for reusable framework helpers.
 
-Every API operation has its own Jest test file and offline OpenAPI contract check. When `BASE_URL` is set, each safe GET operation is also tested individually, provided required path parameters are configured; unavailable calls are skipped. Other state-changing API operations are validated offline against the specification rather than called with guessed data.
+Every API operation has its own Jest test file, an offline OpenAPI contract check, and an individual SuperTest integration case. Integration cases are skipped when required environment settings or data fixtures are unavailable. Mutating operations remain disabled unless explicitly enabled with `CASHHUB_ENABLE_MUTATION_TESTS=true`.
 
 The OpenAPI document provides no `servers` URL. Configure `BASE_URL` to the service root matching the environment's deployment routing. Endpoint paths are sourced from the specification and test-data helpers, not embedded in operation test files.
 

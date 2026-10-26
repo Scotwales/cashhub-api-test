@@ -16,6 +16,10 @@ const API_OPERATIONS = Object.entries(api.paths).flatMap(([path, pathItem]) =>
     }))
 );
 
+const API_ROUTES = Object.fromEntries(
+  API_OPERATIONS.map(operation => [operation.id, operation.path])
+);
+
 function resolveReference(reference) {
   if (!reference.startsWith('#/')) {
     throw new Error(`Unsupported external OpenAPI reference: ${reference}`);
@@ -54,6 +58,7 @@ function assertReferencesResolve(value, visited = new Set()) {
 }
 
 module.exports = {
+  API_ROUTES,
   API_OPERATIONS,
   api,
   assertReferencesResolve
