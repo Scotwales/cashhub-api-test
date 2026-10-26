@@ -1,4 +1,5 @@
 const config = require('../../config/config');
+const { FRAMEWORK_TEST_PATHS } = require('../../test-data/constants');
 const { buildPath, getRequestHeaders } = require('../../utilities/api');
 
 describe('API request helpers', () => {
@@ -7,8 +8,8 @@ describe('API request helpers', () => {
   });
 
   test('builds a path with URL-encoded query parameters', () => {
-    expect(buildPath('/v1/accounts', { page: 2, search: 'cash hub', omitted: null }))
-      .toBe('/v1/accounts?page=2&search=cash+hub');
+    expect(buildPath(FRAMEWORK_TEST_PATHS.QUERY_ENCODING, { page: 2, search: 'cash hub', omitted: null }))
+      .toBe(`${FRAMEWORK_TEST_PATHS.QUERY_ENCODING}?page=2&search=cash+hub`);
   });
 
   test('rejects absolute URLs instead of allowing a request to another host', () => {

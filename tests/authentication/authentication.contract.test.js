@@ -1,4 +1,5 @@
 const api = require('../../openapi/cashhub-authentication.json');
+const { AUTH, OTP } = require('../../test-data/constants');
 
 function requestSchema(path, method = 'post') {
   const operation = api.paths[path]?.[method];
@@ -29,13 +30,13 @@ describe('CashHub Authentication API contract', () => {
   });
 
   test('login payload and successful response match the documented contract', () => {
-    expect(Object.keys(requestSchema('/api/v1/Auth/login').properties).sort()).toEqual([
+    expect(Object.keys(requestSchema(AUTH.LOGIN).properties).sort()).toEqual([
       'deviceFingerprint',
       'password',
       'rememberMe',
       'username'
     ]);
-    expect(Object.keys(responseSchema('/api/v1/Auth/login', 'post', '200').properties).sort())
+    expect(Object.keys(responseSchema(AUTH.LOGIN, 'post', '200').properties).sort())
       .toEqual([
         'accessToken',
         'accessTokenExpiresIn',
@@ -52,10 +53,10 @@ describe('CashHub Authentication API contract', () => {
   });
 
   test('current-user and OTP operations document the expected paths and fields', () => {
-    expect(api.paths['/api/v1/Auth/me'].get.responses).toHaveProperty('401');
-    expect(Object.keys(responseSchema('/api/v1/Auth/me', 'get', '200').properties))
+    expect(api.paths[AUTH.CURRENT_USER].get.responses).toHaveProperty('401');
+    expect(Object.keys(responseSchema(AUTH.CURRENT_USER, 'get', '200').properties))
       .toContain('accountId');
-    expect(Object.keys(requestSchema('/api/v1/Otp/verify-otp').properties).sort()).toEqual([
+    expect(Object.keys(requestSchema(OTP.VERIFY).properties).sort()).toEqual([
       'channel',
       'deviceFingerprint',
       'otpCode',
@@ -63,6 +64,6 @@ describe('CashHub Authentication API contract', () => {
       'rememberMe',
       'sessionToken'
     ]);
-    expect(api.paths['/api/v1/Otp/verify-otp'].post.responses).toHaveProperty('429');
+    expect(api.paths[OTP.VERIFY].post.responses).toHaveProperty('429');
   });
 });

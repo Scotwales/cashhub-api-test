@@ -1,10 +1,11 @@
 const { logRequest } = require('../../utilities/logger');
+const { FRAMEWORK_TEST_PATHS } = require('../../test-data/constants');
 
 describe('request logging', () => {
   test('redacts sensitive request and response fields', () => {
     const entry = logRequest({
       method: 'POST',
-      path: '/v1/test',
+      path: FRAMEWORK_TEST_PATHS.LOGGER,
       payload: {
         pin: '1234',
         profile: { access_token: 'token-value' },
