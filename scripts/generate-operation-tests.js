@@ -181,11 +181,41 @@ function supportsDocumented(operation, status) {
   return Object.hasOwn(operation.operation.responses || {}, String(status));
 }
 
+// Values that can be produced without configuration come from the shared test
+// data set. Resource identifiers, tokens, OTPs, PINs, and uploads stay fixtures.
+const GENERATED_FIELDS = {
+  email: 'email',
+  phonenumber: 'phoneNumber',
+  contactnumber: 'contactNumber',
+  deliverycontactphone: 'deliveryContactPhone',
+  firstname: 'firstName',
+  lastname: 'lastName',
+  contactperson: 'fullName',
+  deliverycontactname: 'fullName',
+  homeaddress: 'homeAddress',
+  streetaddress: 'streetAddress',
+  deliveryaddress: 'deliveryAddress',
+  lga: 'lga',
+  state: 'state',
+  name: 'outletName',
+  productname: 'productName',
+  description: 'description',
+  features: 'features',
+  deviceid: 'deviceId',
+  devicefingerprint: 'deviceFingerprint'
+};
+
 class Emitter {
-  constructor(reserved = []) {
+  constructor(reserved = [], options = {}) {
     this.fixtures = new Map();
     this.reserved = new Set(reserved);
     this.uses = new Set();
+    this.options = options;
+  }
+
+  generated(field) {
+    this.uses.add('generateTestDataSet');
+    return `testData.${field}`;
   }
 
   fixture(variable, environmentName) {
@@ -256,28 +286,37 @@ class Emitter {
       return "generateReference('cashhub')";
     }
     if (schema.format === 'email') {
-      this.uses.add('generateEmail');
-      return 'generateEmail()';
+      return this.generated('email');
     }
     return this.stringValue(name);
   }
 
   stringValue(name) {
     const key = name.toLowerCase();
-    if (/new.?password/.test(key)) {
-      return this.fixture(camelCase(name), fieldEnvironmentName(name));
+
+    if (key === 'confirmpassword') {
+      const field = this.options.bodyFields?.has('newpassword') ? 'newPassword' : 'password';
+      return this.generated(field);
     }
-    if (/password/.test(key)) {
-      this.uses.add('configPassword');
-      return 'config.testPassword';
+    if (key === 'newpassword' || key === 'confirmnewpassword') {
+      return this.generated('newPassword');
     }
-    if (/username/.test(key)) {
-      this.uses.add('configUsername');
-      return 'config.testUsername';
+    if (key === 'password' || key === 'currentpassword' || key === 'oldpassword') {
+      if (this.options.requiresExistingCredentials) {
+        this.uses.add('configPassword');
+        return 'config.testPassword';
+      }
+      return this.generated('password');
     }
-    if (/email/.test(key)) {
-      this.uses.add('generateEmail');
-      return 'generateEmail()';
+    if (key === 'username') {
+      if (this.options.requiresExistingCredentials) {
+        this.uses.add('configUsername');
+        return 'config.testUsername';
+      }
+      return this.generated('username');
+    }
+    if (GENERATED_FIELDS[key]) {
+      return this.generated(GENERATED_FIELDS[key]);
     }
     if (/(id|ids|number|reference|serial|token|otp|pin|passkey|secret|code)$/i.test(name)) {
       return this.fixture(camelCase(name), fieldEnvironmentName(name));
@@ -400,9 +439,16 @@ function testSource(operation) {
     .split(path.sep)
     .join('/');
   const pathArgs = pathParameters(operation).map(parameterVariable);
-  const emitter = new Emitter(pathArgs);
   const details = responseDetails(operation);
   const body = requestBody(operation);
+  const loginOperation = /\/login$/i.test(operation.path);
+  const requiresExistingCredentials = loginOperation ||
+    /forgot-password$/i.test(operation.path) ||
+    /change-password\/initiate$/i.test(operation.path);
+  const bodyFields = new Set(
+    Object.keys(body?.schema.properties || {}).map(field => field.toLowerCase())
+  );
+  const emitter = new Emitter(pathArgs, { bodyFields, requiresExistingCredentials });
   const group = groupName(operation.tag);
   const constantName = constantNames.get(operation);
   const call = pathArgs.length ? `${constantName}(${pathArgs.join(', ')})` : constantName;
@@ -411,7 +457,6 @@ function testSource(operation) {
     .split(/\r?\n/)[0]
     .trim();
   const summary = rawSummary.split(/\.\s/)[0].replace(/\.$/, '').trim() || rawSummary;
-  const writeOperation = method !== 'get';
   const queryParams = queryParameters(operation);
 
   const requestLines = [`        .${method}(${call})`, '        .set(getRequestHeaders())'];
@@ -425,27 +470,12 @@ function testSource(operation) {
   }
   requestLines[requestLines.length - 1] += ';';
 
-  const gate = [...pathArgs, ...emitter.fixtures.keys()];
-  if (emitter.uses.has('configUsername')) {
-    gate.push('config.testUsername');
-  }
-  if (emitter.uses.has('configPassword')) {
-    gate.push('config.testPassword');
-  }
-  if (writeOperation) {
-    gate.push("process.env.CASHHUB_ENABLE_MUTATION_TESTS === 'true'");
-  }
-  const pathGate = pathArgs.length ? pathArgs.join(' && ') : null;
-
   const negatives = [];
   const validationSchema = body && body.mediaType === 'application/json' ? body.schema : undefined;
 
   if (supportsDocumented(operation, 422) && validationSchema?.required?.length) {
-    const gateParts = [pathGate, writeOperation ? "process.env.CASHHUB_ENABLE_MUTATION_TESTS === 'true'" : null]
-      .filter(Boolean);
     negatives.push({
       title: 'Negative Cases - Validation Errors',
-      registered: `(${gateParts.length ? gateParts.join(' && ') : 'true'} ? test : test.skip)`,
       description: 'should return 422 when required fields are missing',
       request: [
         '      const response = await request(baseUrl)',
@@ -460,15 +490,11 @@ function testSource(operation) {
   if (supportsDocumented(operation, 401)) {
     const bogus = pathArgs.map(() => javascriptString('00000000-0000-0000-0000-000000000000'));
     const authCall = pathArgs.length ? `${constantName}(${bogus.join(', ')})` : constantName;
-    const gateParts = [writeOperation ? "process.env.CASHHUB_ENABLE_MUTATION_TESTS === 'true'" : null]
-      .filter(Boolean);
     const accepted = supportsDocumented(operation, 403)
       ? 'expect([STATUS.UNAUTHORIZED, STATUS.FORBIDDEN]).toContain(response.status);'
       : 'expect(response.status).toBe(STATUS.UNAUTHORIZED);';
-    const loginOperation = /login$/i.test(operation.path);
     negatives.push({
       title: 'Negative Cases - Authentication',
-      registered: gateParts.length ? `(${gateParts.join(' && ')} ? test : test.skip)` : 'test',
       description: loginOperation
         ? 'should reject invalid credentials'
         : 'should reject a malformed bearer token',
@@ -495,7 +521,6 @@ function testSource(operation) {
     const bogus = pathArgs.map(() => javascriptString('00000000-0000-0000-0000-000000000000'));
     negatives.push({
       title: 'Negative Cases - Not Found',
-      registered: body ? 'happyPathTest' : `(${pathGate} ? test : test.skip)`,
       description: 'should return 404 when the resource does not exist',
       request: [
         '      const response = await request(baseUrl)',
@@ -514,15 +539,13 @@ function testSource(operation) {
   if (emitter.uses.has('configUsername') || emitter.uses.has('configPassword')) {
     lines.push(`const config = require('${relativeRoot}/config/config');`);
   }
-  const generators = ['generateEmail', 'generateReference'].filter(name => emitter.uses.has(name));
+  const generators = ['generateReference', 'generateTestDataSet'].filter(name => emitter.uses.has(name));
   if (generators.length) {
     lines.push(`const { ${generators.join(', ')} } = require('${relativeRoot}/data-generator/TestDataGenerator');`);
   }
   lines.push('');
   lines.push('let baseUrl = process.env.BASE_URL;');
   lines.push("if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';");
-  lines.push('const runIntegration = !!process.env.BASE_URL;');
-  lines.push('const describeOrSkip = runIntegration ? describe : describe.skip;');
   lines.push('');
 
   for (const parameter of pathParameters(operation)) {
@@ -544,15 +567,15 @@ function testSource(operation) {
     lines.push('');
   }
 
-  lines.push(gate.length
-    ? `const happyPathTest = ${gate.join(' && ')} ? test : test.skip;`
-    : 'const happyPathTest = test;');
-  lines.push('');
-  lines.push(`describeOrSkip(${javascriptString(`${operation.tag} - ${summary}`)}, function() {`);
+  lines.push(`describe(${javascriptString(`${operation.tag} - ${summary}`)}, function() {`);
   lines.push('');
   lines.push("  describe('Happy Path', function() {");
   lines.push('');
-  lines.push(`    happyPathTest(${javascriptString(`should return ${details.status} from ${operation.method.toUpperCase()} ${operation.path}`)}, async function() {`);
+  lines.push(`    test(${javascriptString(`should return ${details.status} from ${operation.method.toUpperCase()} ${operation.path}`)}, async function() {`);
+  if (requestLines.some(line => line.includes('testData.'))) {
+    lines.push('      const testData = generateTestDataSet();');
+    lines.push('');
+  }
   lines.push('      const response = await request(baseUrl)');
   lines.push(...requestLines);
   lines.push('');
@@ -571,7 +594,11 @@ function testSource(operation) {
     lines.push('');
     lines.push(`  describe(${javascriptString(block.title)}, function() {`);
     lines.push('');
-    lines.push(`    ${block.registered}(${javascriptString(block.description)}, async function() {`);
+    lines.push(`    test(${javascriptString(block.description)}, async function() {`);
+    if (block.request.some(line => line.includes('testData.'))) {
+      lines.push('      const testData = generateTestDataSet();');
+      lines.push('');
+    }
     lines.push(...block.request);
     lines.push('');
     for (const assertion of block.assertions) {

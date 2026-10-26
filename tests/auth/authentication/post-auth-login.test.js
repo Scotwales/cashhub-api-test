@@ -2,27 +2,25 @@ const request = require('supertest');
 const { AUTH, STATUS } = require('../../../test-data/constants');
 const { getRequestHeaders } = require('../../../utilities/api');
 const config = require('../../../config/config');
-const { generateReference } = require('../../../data-generator/TestDataGenerator');
+const { generateTestDataSet } = require('../../../data-generator/TestDataGenerator');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-const runIntegration = !!process.env.BASE_URL;
-const describeOrSkip = runIntegration ? describe : describe.skip;
 
-const happyPathTest = config.testUsername && config.testPassword && process.env.CASHHUB_ENABLE_MUTATION_TESTS === 'true' ? test : test.skip;
-
-describeOrSkip('Auth - POST /api/v1/Auth/login', function() {
+describe('Auth - POST /api/v1/Auth/login', function() {
 
   describe('Happy Path', function() {
 
-    happyPathTest('should return 200 from POST /api/v1/Auth/login', async function() {
+    test('should return 200 from POST /api/v1/Auth/login', async function() {
+      const testData = generateTestDataSet();
+
       const response = await request(baseUrl)
         .post(AUTH.LOGIN)
         .set(getRequestHeaders())
         .send({
           username: config.testUsername,
           password: config.testPassword,
-          deviceFingerprint: generateReference('deviceFingerprint'),
+          deviceFingerprint: testData.deviceFingerprint,
           rememberMe: false
         });
 
@@ -40,7 +38,7 @@ describeOrSkip('Auth - POST /api/v1/Auth/login', function() {
 
   describe('Negative Cases - Authentication', function() {
 
-    (process.env.CASHHUB_ENABLE_MUTATION_TESTS === 'true' ? test : test.skip)('should reject invalid credentials', async function() {
+    test('should reject invalid credentials', async function() {
       const response = await request(baseUrl)
         .post(AUTH.LOGIN)
         .set(getRequestHeaders())

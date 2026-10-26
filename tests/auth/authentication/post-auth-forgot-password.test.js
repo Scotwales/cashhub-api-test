@@ -5,16 +5,12 @@ const config = require('../../../config/config');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-const runIntegration = !!process.env.BASE_URL;
-const describeOrSkip = runIntegration ? describe : describe.skip;
 
-const happyPathTest = config.testUsername && process.env.CASHHUB_ENABLE_MUTATION_TESTS === 'true' ? test : test.skip;
-
-describeOrSkip('Auth - Request a password-reset OTP dispatched via SMS or email', function() {
+describe('Auth - Request a password-reset OTP dispatched via SMS or email', function() {
 
   describe('Happy Path', function() {
 
-    happyPathTest('should return 200 from POST /api/v1/Auth/forgot-password', async function() {
+    test('should return 200 from POST /api/v1/Auth/forgot-password', async function() {
       const response = await request(baseUrl)
         .post(AUTH.FORGOT_PASSWORD)
         .set(getRequestHeaders())

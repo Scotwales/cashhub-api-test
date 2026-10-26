@@ -4,20 +4,16 @@ const { getRequestHeaders } = require('../../../utilities/api');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-const runIntegration = !!process.env.BASE_URL;
-const describeOrSkip = runIntegration ? describe : describe.skip;
 
 const pin = process.env.CASHHUB_TEST_DATA_PIN;
 const confirmPin = process.env.CASHHUB_TEST_DATA_CONFIRM_PIN;
 const currentPin = process.env.CASHHUB_TEST_DATA_CURRENT_PIN;
 
-const happyPathTest = pin && confirmPin && currentPin && process.env.CASHHUB_ENABLE_MUTATION_TESTS === 'true' ? test : test.skip;
-
-describeOrSkip('Auth - Create or change the 6-digit transaction PIN', function() {
+describe('Auth - Create or change the 6-digit transaction PIN', function() {
 
   describe('Happy Path', function() {
 
-    happyPathTest('should return 200 from POST /api/v1/Auth/create-pin', async function() {
+    test('should return 200 from POST /api/v1/Auth/create-pin', async function() {
       const response = await request(baseUrl)
         .post(AUTH.CREATE_PIN)
         .set(getRequestHeaders())
@@ -37,7 +33,7 @@ describeOrSkip('Auth - Create or change the 6-digit transaction PIN', function()
 
   describe('Negative Cases - Authentication', function() {
 
-    (process.env.CASHHUB_ENABLE_MUTATION_TESTS === 'true' ? test : test.skip)('should reject a malformed bearer token', async function() {
+    test('should reject a malformed bearer token', async function() {
       const response = await request(baseUrl)
         .post(AUTH.CREATE_PIN)
         .set(getRequestHeaders())

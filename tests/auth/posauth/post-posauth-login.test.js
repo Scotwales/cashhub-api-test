@@ -5,18 +5,14 @@ const { generateReference } = require('../../../data-generator/TestDataGenerator
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-const runIntegration = !!process.env.BASE_URL;
-const describeOrSkip = runIntegration ? describe : describe.skip;
 
 const terminalId = process.env.CASHHUB_TEST_DATA_TERMINAL_ID;
 
-const happyPathTest = terminalId && process.env.CASHHUB_ENABLE_MUTATION_TESTS === 'true' ? test : test.skip;
-
-describeOrSkip('PosAuth - POST /api/v1/PosAuth/login', function() {
+describe('PosAuth - POST /api/v1/PosAuth/login', function() {
 
   describe('Happy Path', function() {
 
-    happyPathTest('should return 200 from POST /api/v1/PosAuth/login', async function() {
+    test('should return 200 from POST /api/v1/PosAuth/login', async function() {
       const response = await request(baseUrl)
         .post(POS_AUTH.LOGIN)
         .set(getRequestHeaders())
@@ -39,7 +35,7 @@ describeOrSkip('PosAuth - POST /api/v1/PosAuth/login', function() {
 
   describe('Negative Cases - Authentication', function() {
 
-    (process.env.CASHHUB_ENABLE_MUTATION_TESTS === 'true' ? test : test.skip)('should reject invalid credentials', async function() {
+    test('should reject invalid credentials', async function() {
       const response = await request(baseUrl)
         .post(POS_AUTH.LOGIN)
         .set(getRequestHeaders())

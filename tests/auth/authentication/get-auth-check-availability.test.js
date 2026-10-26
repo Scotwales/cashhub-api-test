@@ -4,19 +4,15 @@ const { getRequestHeaders } = require('../../../utilities/api');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-const runIntegration = !!process.env.BASE_URL;
-const describeOrSkip = runIntegration ? describe : describe.skip;
 
 const query = {};
 if (process.env.CASHHUB_TEST_PARAM_USERNAME) query.username = process.env.CASHHUB_TEST_PARAM_USERNAME;
 
-const happyPathTest = test;
-
-describeOrSkip('Auth - Authenticate user and issue JWT access token + opaque refresh token', function() {
+describe('Auth - Authenticate user and issue JWT access token + opaque refresh token', function() {
 
   describe('Happy Path', function() {
 
-    happyPathTest('should return 200 from GET /api/v1/Auth/check-availability', async function() {
+    test('should return 200 from GET /api/v1/Auth/check-availability', async function() {
       const response = await request(baseUrl)
         .get(AUTH.CHECK_AVAILABILITY)
         .set(getRequestHeaders())

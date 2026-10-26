@@ -5,19 +5,15 @@ const { generateReference } = require('../../../data-generator/TestDataGenerator
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-const runIntegration = !!process.env.BASE_URL;
-const describeOrSkip = runIntegration ? describe : describe.skip;
 
 const requestId = process.env.CASHHUB_TEST_PARAM_REQUEST_ID;
 const modelCode = process.env.CASHHUB_TEST_DATA_MODEL_CODE;
 
-const happyPathTest = requestId && modelCode && process.env.CASHHUB_ENABLE_MUTATION_TESTS === 'true' ? test : test.skip;
-
-describeOrSkip('Admin - Approves a request and issues the chosen devices to it in one action —', function() {
+describe('Admin - Approves a request and issues the chosen devices to it in one action —', function() {
 
   describe('Happy Path', function() {
 
-    happyPathTest('should return 200 from POST /api/v1/admin/pos/requests/{requestId}/approve', async function() {
+    test('should return 200 from POST /api/v1/admin/pos/requests/{requestId}/approve', async function() {
       const response = await request(baseUrl)
         .post(ADMIN.POS_REQUESTS_BY_REQUEST_ID_APPROVE(requestId))
         .set(getRequestHeaders())
@@ -41,7 +37,7 @@ describeOrSkip('Admin - Approves a request and issues the chosen devices to it i
 
   describe('Negative Cases - Authentication', function() {
 
-    (process.env.CASHHUB_ENABLE_MUTATION_TESTS === 'true' ? test : test.skip)('should reject a malformed bearer token', async function() {
+    test('should reject a malformed bearer token', async function() {
       const response = await request(baseUrl)
         .post(ADMIN.POS_REQUESTS_BY_REQUEST_ID_APPROVE('00000000-0000-0000-0000-000000000000'))
         .set(getRequestHeaders())
@@ -55,7 +51,7 @@ describeOrSkip('Admin - Approves a request and issues the chosen devices to it i
 
   describe('Negative Cases - Not Found', function() {
 
-    happyPathTest('should return 404 when the resource does not exist', async function() {
+    test('should return 404 when the resource does not exist', async function() {
       const response = await request(baseUrl)
         .post(ADMIN.POS_REQUESTS_BY_REQUEST_ID_APPROVE('00000000-0000-0000-0000-000000000000'))
         .set(getRequestHeaders())

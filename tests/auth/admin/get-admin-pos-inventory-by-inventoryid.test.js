@@ -4,18 +4,14 @@ const { getRequestHeaders } = require('../../../utilities/api');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-const runIntegration = !!process.env.BASE_URL;
-const describeOrSkip = runIntegration ? describe : describe.skip;
 
 const inventoryId = process.env.CASHHUB_TEST_PARAM_INVENTORY_ID;
 
-const happyPathTest = inventoryId ? test : test.skip;
-
-describeOrSkip('Admin - One catalog row: identity, pricing, imagery, description and both stock', function() {
+describe('Admin - One catalog row: identity, pricing, imagery, description and both stock', function() {
 
   describe('Happy Path', function() {
 
-    happyPathTest('should return 200 from GET /api/v1/admin/pos/inventory/{inventoryId}', async function() {
+    test('should return 200 from GET /api/v1/admin/pos/inventory/{inventoryId}', async function() {
       const response = await request(baseUrl)
         .get(ADMIN.GET_POS_INVENTORY_BY_INVENTORY_ID(inventoryId))
         .set(getRequestHeaders());
@@ -47,7 +43,7 @@ describeOrSkip('Admin - One catalog row: identity, pricing, imagery, description
 
   describe('Negative Cases - Not Found', function() {
 
-    (inventoryId ? test : test.skip)('should return 404 when the resource does not exist', async function() {
+    test('should return 404 when the resource does not exist', async function() {
       const response = await request(baseUrl)
         .get(ADMIN.GET_POS_INVENTORY_BY_INVENTORY_ID('00000000-0000-0000-0000-000000000000'))
         .set(getRequestHeaders());

@@ -4,16 +4,12 @@ const { getRequestHeaders } = require('../../../utilities/api');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-const runIntegration = !!process.env.BASE_URL;
-const describeOrSkip = runIntegration ? describe : describe.skip;
 
-const happyPathTest = test;
-
-describeOrSkip('Auth - GET /api/v1/Auth/me', function() {
+describe('Auth - GET /api/v1/Auth/me', function() {
 
   describe('Happy Path', function() {
 
-    happyPathTest('should return 200 from GET /api/v1/Auth/me', async function() {
+    test('should return 200 from GET /api/v1/Auth/me', async function() {
       const response = await request(baseUrl)
         .get(AUTH.ME)
         .set(getRequestHeaders());

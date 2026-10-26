@@ -5,18 +5,14 @@ const { generateReference } = require('../../../data-generator/TestDataGenerator
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-const runIntegration = !!process.env.BASE_URL;
-const describeOrSkip = runIntegration ? describe : describe.skip;
 
 const id = process.env.CASHHUB_TEST_PARAM_ID;
 
-const happyPathTest = id && process.env.CASHHUB_ENABLE_MUTATION_TESTS === 'true' ? test : test.skip;
-
-describeOrSkip('User - POST /api/v1/User/{id}/reset-pin', function() {
+describe('User - POST /api/v1/User/{id}/reset-pin', function() {
 
   describe('Happy Path', function() {
 
-    happyPathTest('should return 200 from POST /api/v1/User/{id}/reset-pin', async function() {
+    test('should return 200 from POST /api/v1/User/{id}/reset-pin', async function() {
       const response = await request(baseUrl)
         .post(USER.BY_ID_RESET_PIN(id))
         .set(getRequestHeaders())
@@ -35,7 +31,7 @@ describeOrSkip('User - POST /api/v1/User/{id}/reset-pin', function() {
 
   describe('Negative Cases - Not Found', function() {
 
-    happyPathTest('should return 404 when the resource does not exist', async function() {
+    test('should return 404 when the resource does not exist', async function() {
       const response = await request(baseUrl)
         .post(USER.BY_ID_RESET_PIN('00000000-0000-0000-0000-000000000000'))
         .set(getRequestHeaders())

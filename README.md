@@ -6,7 +6,7 @@ This repository contains the Cashhub API tests on the Smartsend test-runner arch
 
 - Node.js 18 or newer
 - npm
-- A Cashhub API base URL only when running integration tests
+- A Cashhub API base URL and test fixtures when running integration tests
 
 ## Setup
 
@@ -15,9 +15,11 @@ npm ci
 cp .env.example .env
 ```
 
-Set `BASE_URL` to the API service root and only use a CashHub JWT with the `Bearer` scheme. The Swagger document does not define OAuth client credentials. Set `API_TOKEN` for authenticated operations and `CASHHUB_TEST_PARAM_<PATH_PARAMETER>` for operations requiring resource IDs. The request-data builder creates schema-informed values and supports explicit `CASHHUB_TEST_DATA_<FIELD>` overrides. Supply required credentials, OTP/PIN/session values, related resource IDs, and upload fixtures using dedicated test data rather than production values.
+Set `BASE_URL` to the API service root and only use a CashHub JWT with the `Bearer` scheme. The Swagger document does not define OAuth client credentials. Set `API_TOKEN` for authenticated operations and `CASHHUB_TEST_PARAM_<PATH_PARAMETER>` for operations requiring resource IDs.
 
-GET operations can run when the base URL, authentication, and required resource IDs are configured. All non-GET operations require `CASHHUB_ENABLE_MUTATION_TESTS=true`; configure a disposable test environment before enabling them. Tests needing unconfigured values or upload files are skipped with the missing fixture named.
+Values that can be generated without configuration come from `generateTestDataSet()` in `data-generator/TestDataGenerator.js`: unique names, emails, usernames, phone numbers, addresses, device identifiers, registration and password-change passwords, and references. Do not add environment variables for these. Use `CASHHUB_TEST_DATA_<FIELD>` only for values the generator cannot know - real resource IDs, session/refresh tokens, OTPs, PINs, and upload fixtures. Supply those values from a disposable test environment rather than production.
+
+Selecting a suite runs every test in it. Point `BASE_URL` at a disposable environment before running non-GET operations. Tests that reference a missing resource or secret fail rather than silently skipping, so configure the fixtures they need first.
 
 ## Commands
 
@@ -26,6 +28,7 @@ npm test -- all
 npm test -- auth
 npm test -- smoke
 npm run test:ci
+npm run test:contract
 npm run test:direct -- tests/auth/authentication/post-auth-login.test.js
 npm run generate:operation-tests
 ```
@@ -34,18 +37,30 @@ The target-based runner in `runTestsCashhub.js` accepts the `auth` suite (the on
 
 `test.config.cashhub.js` maps a target to one entry point per suite, not to individual test files. Nested folders stay independently runnable through their own configs and runners.
 
+## Skipping tests
+
+Test files never contain skip flags. Selecting a target runs every test in it, so a missing filter or fixture does not silently hide coverage. To skip deliberately:
+
+- one test: change `test(` to `test.skip(`
+- a whole block: change `describe(` to `describe.skip(`
+- everything except one file: `npm run test:direct -- tests/auth/authentication/post-auth-login.test.js`
+- everything except matching names: append `-t "should return 200"` to the command
+- a folder: pass `--testPathIgnorePatterns tests/auth/<tag>` to Jest
+
+Remove the flag once the test should run again.
+
 ## Continuous integration
 
 `npm run test:ci` runs the whole suite in-band. When `CI` or `GITHUB_ACTIONS` is set, `jest.config.cashhub.js` switches the report and coverage paths to `reports/ci/` and adds the JUnit reporter, matching the Smartsend CI setup.
 
-`.github/workflows/api-tests.yml` runs the same steps on every invocation: install with `npm ci`, run `npm run test:ci`, and upload `reports/` as the `cashhub-api-test-reports` artifact for 14 days. Set the `TEST_REPO_DOT_ENV` secret to a base64-encoded `.env` to supply integration credentials; without it the workflow copies `.env.example` and only the offline contract tests exercise the API.
+`.github/workflows/api-tests.yml` installs with `npm ci`, then runs the full suite when the supplied `.env` has a `BASE_URL`, otherwise it runs only the offline contract test with `npm run test:contract`. It uploads `reports/` as the `cashhub-api-test-reports` artifact for 14 days. Set the `TEST_REPO_DOT_ENV` secret to a base64-encoded `.env` to supply integration credentials.
 
 ## Test layout
 
 - `config/config.js`: loads project environment settings.
 - `runTestsCashhub.js` and `test.config.cashhub.js`: Smartsend-style target-based suite selection.
 - `jest.config.cashhub.js`, `jest.setup.js`, and `babel.config.js`: Jest, Babel, request logging, and HTML/JUnit reporting configuration.
-- `data-generator/`: reusable, API-neutral test-data generation.
+- `data-generator/TestDataGenerator.js`: shared generators and `generateTestDataSet()`, the utility that builds unique, internally consistent values without environment variables.
 - `utilities/api.js`: request-header builder, including optional bearer authentication.
 - `utilities/logger.js`: captures request/response details for terminal and HTML reports, redacting sensitive fields.
 - `openapi/cashhub-authentication.json`: API contract used by the offline contract tests and by the operation-test generator.
@@ -56,9 +71,9 @@ The target-based runner in `runTestsCashhub.js` accepts the `auth` suite (the on
 - `tests/auth/run-tests-in-order.test.js`: requires each child runner in order, so the suite has one entry point.
 - `tests/auth/<tag>/test-suite.config.js`: ordered list of that folder's test files.
 - `tests/auth/<tag>/run-tests-in-order.test.js`: runs that folder in order and can also be required by the parent suite.
-- `tests/auth/authentication/`: the Auth-tag operations plus `authentication.contract.test.js` and `authentication.integration.test.js`.
+- `tests/auth/authentication/`: the Auth-tag operations plus `authentication.contract.test.js` (offline) and `authentication.integration.test.js` (needs `BASE_URL` and test credentials).
 
-Every API operation has its own Jest test file written in the Smartsend style: the endpoint comes from `test-data/constants.js`, the suite is wrapped in `describeOrSkip` so it only runs when `BASE_URL` is set, and the documented happy path is paired with the negative cases the OpenAPI response codes make testable (404 for path-parameter operations, 401/403 for operations that document authentication failures). Happy paths are skipped until the path, body, and upload fixtures they need are configured. Mutating operations remain disabled unless explicitly enabled with `CASHHUB_ENABLE_MUTATION_TESTS=true`.
+Every API operation has its own Jest test file written in the Smartsend style: the endpoint comes from `test-data/constants.js`, generated request data comes from `generateTestDataSet()`, and plain `describe`/`test` blocks avoid hidden skip behaviour. The documented happy path is paired with the negative cases the OpenAPI response codes make testable (404 for path-parameter operations, 401/403 for operations that document authentication failures). Request data that must reference an existing record, token, OTP, PIN, or upload file is read from the fixture environment variables instead of being invented.
 
 Regenerate the operation tests after updating the schema with `npm run generate:operation-tests`; the generator writes each file into the matching tag folder and keeps relative imports correct at any depth.
 

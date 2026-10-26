@@ -5,18 +5,14 @@ const { generateReference } = require('../../../data-generator/TestDataGenerator
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-const runIntegration = !!process.env.BASE_URL;
-const describeOrSkip = runIntegration ? describe : describe.skip;
 
 const terminalId = process.env.CASHHUB_TEST_PARAM_TERMINAL_ID;
 
-const happyPathTest = terminalId && process.env.CASHHUB_ENABLE_MUTATION_TESTS === 'true' ? test : test.skip;
-
-describeOrSkip('Pos - Device-reported heartbeat (every ~60s) — upserts the terminal\'s', function() {
+describe('Pos - Device-reported heartbeat (every ~60s) — upserts the terminal\'s', function() {
 
   describe('Happy Path', function() {
 
-    happyPathTest('should return 200 from POST /api/v1/pos/terminals/{terminalId}/heartbeat', async function() {
+    test('should return 200 from POST /api/v1/pos/terminals/{terminalId}/heartbeat', async function() {
       const response = await request(baseUrl)
         .post(POS.TERMINALS_BY_TERMINAL_ID_HEARTBEAT(terminalId))
         .set(getRequestHeaders())
@@ -41,7 +37,7 @@ describeOrSkip('Pos - Device-reported heartbeat (every ~60s) — upserts the ter
 
   describe('Negative Cases - Authentication', function() {
 
-    (process.env.CASHHUB_ENABLE_MUTATION_TESTS === 'true' ? test : test.skip)('should reject a malformed bearer token', async function() {
+    test('should reject a malformed bearer token', async function() {
       const response = await request(baseUrl)
         .post(POS.TERMINALS_BY_TERMINAL_ID_HEARTBEAT('00000000-0000-0000-0000-000000000000'))
         .set(getRequestHeaders())
@@ -55,7 +51,7 @@ describeOrSkip('Pos - Device-reported heartbeat (every ~60s) — upserts the ter
 
   describe('Negative Cases - Not Found', function() {
 
-    happyPathTest('should return 404 when the resource does not exist', async function() {
+    test('should return 404 when the resource does not exist', async function() {
       const response = await request(baseUrl)
         .post(POS.TERMINALS_BY_TERMINAL_ID_HEARTBEAT('00000000-0000-0000-0000-000000000000'))
         .set(getRequestHeaders())

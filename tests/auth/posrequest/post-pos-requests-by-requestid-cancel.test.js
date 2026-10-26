@@ -4,18 +4,14 @@ const { getRequestHeaders } = require('../../../utilities/api');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-const runIntegration = !!process.env.BASE_URL;
-const describeOrSkip = runIntegration ? describe : describe.skip;
 
 const requestId = process.env.CASHHUB_TEST_PARAM_REQUEST_ID;
 
-const happyPathTest = requestId && process.env.CASHHUB_ENABLE_MUTATION_TESTS === 'true' ? test : test.skip;
-
-describeOrSkip('PosRequest - Agent cancels own request — only while SUBMITTED or UNDER_REVIEW', function() {
+describe('PosRequest - Agent cancels own request — only while SUBMITTED or UNDER_REVIEW', function() {
 
   describe('Happy Path', function() {
 
-    happyPathTest('should return 200 from POST /api/v1/pos/requests/{requestId}/cancel', async function() {
+    test('should return 200 from POST /api/v1/pos/requests/{requestId}/cancel', async function() {
       const response = await request(baseUrl)
         .post(POS_REQUEST.POS_REQUESTS_BY_REQUEST_ID_CANCEL(requestId))
         .set(getRequestHeaders());
@@ -33,7 +29,7 @@ describeOrSkip('PosRequest - Agent cancels own request — only while SUBMITTED 
 
   describe('Negative Cases - Not Found', function() {
 
-    (requestId ? test : test.skip)('should return 404 when the resource does not exist', async function() {
+    test('should return 404 when the resource does not exist', async function() {
       const response = await request(baseUrl)
         .post(POS_REQUEST.POS_REQUESTS_BY_REQUEST_ID_CANCEL('00000000-0000-0000-0000-000000000000'))
         .set(getRequestHeaders());

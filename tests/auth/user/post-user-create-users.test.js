@@ -1,34 +1,30 @@
 const request = require('supertest');
 const { USER, STATUS } = require('../../../test-data/constants');
 const { getRequestHeaders } = require('../../../utilities/api');
-const { generateEmail, generateReference } = require('../../../data-generator/TestDataGenerator');
+const { generateReference, generateTestDataSet } = require('../../../data-generator/TestDataGenerator');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-const runIntegration = !!process.env.BASE_URL;
-const describeOrSkip = runIntegration ? describe : describe.skip;
 
-const phoneNumber = process.env.CASHHUB_TEST_DATA_PHONE_NUMBER;
-
-const happyPathTest = phoneNumber && process.env.CASHHUB_ENABLE_MUTATION_TESTS === 'true' ? test : test.skip;
-
-describeOrSkip('User - POST /api/v1/User/create-users', function() {
+describe('User - POST /api/v1/User/create-users', function() {
 
   describe('Happy Path', function() {
 
-    happyPathTest('should return 200 from POST /api/v1/User/create-users', async function() {
+    test('should return 200 from POST /api/v1/User/create-users', async function() {
+      const testData = generateTestDataSet();
+
       const response = await request(baseUrl)
         .post(USER.CREATE_USERS)
         .set(getRequestHeaders())
         .send({
           roleType: generateReference('roleType'),
-          phoneNumber: phoneNumber,
-          email: generateEmail(),
+          phoneNumber: testData.phoneNumber,
+          email: testData.email,
           idType: generateReference('idType'),
           idTypeValue: generateReference('idTypeValue'),
-          firstName: generateReference('firstName'),
-          lastName: generateReference('lastName'),
-          homeAddress: generateReference('homeAddress')
+          firstName: testData.firstName,
+          lastName: testData.lastName,
+          homeAddress: testData.homeAddress
         });
 
       expect(response.status).toBe(STATUS.OK);

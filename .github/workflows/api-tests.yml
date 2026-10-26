@@ -32,7 +32,12 @@ jobs:
         run: npm ci
 
       - name: Run tests
-        run: npm run test:ci
+        run: |
+          if grep -q '^BASE_URL=.' .env; then
+            npm run test:ci
+          else
+            npm run test:contract
+          fi
 
       - name: Upload test reports
         if: always()

@@ -4,8 +4,6 @@ const { getRequestHeaders } = require('../../../utilities/api');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-const runIntegration = !!process.env.BASE_URL;
-const describeOrSkip = runIntegration ? describe : describe.skip;
 
 const query = {};
 if (process.env.CASHHUB_TEST_PARAM_STATUS) query.status = process.env.CASHHUB_TEST_PARAM_STATUS;
@@ -17,13 +15,11 @@ if (process.env.CASHHUB_TEST_PARAM_DATE_TO) query.dateTo = process.env.CASHHUB_T
 if (process.env.CASHHUB_TEST_PARAM_PAGE) query.page = process.env.CASHHUB_TEST_PARAM_PAGE;
 if (process.env.CASHHUB_TEST_PARAM_PAGE_SIZE) query.pageSize = process.env.CASHHUB_TEST_PARAM_PAGE_SIZE;
 
-const happyPathTest = test;
-
-describeOrSkip('PosRequest - Operations queue — agent profile, outlet details, delivery address,', function() {
+describe('PosRequest - Operations queue — agent profile, outlet details, delivery address,', function() {
 
   describe('Happy Path', function() {
 
-    happyPathTest('should return 200 from GET /api/v1/pos/requests/queue', async function() {
+    test('should return 200 from GET /api/v1/pos/requests/queue', async function() {
       const response = await request(baseUrl)
         .get(POS_REQUEST.POS_REQUESTS_QUEUE)
         .set(getRequestHeaders())

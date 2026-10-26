@@ -3,11 +3,8 @@ const config = require('../../../config/config');
 const { createLoginPayload } = require('../../../test-data/authentication');
 const { AUTH, STATUS } = require('../../../test-data/constants');
 
-const describeIntegration = config.baseUrl ? describe : describe.skip;
-const testLogin = config.testUsername && config.testPassword ? test : test.skip;
-
-describeIntegration('CashHub Authentication API', () => {
-  testLogin('authenticates the configured test user and verifies the returned JWT', async () => {
+describe('CashHub Authentication API', () => {
+  test('authenticates the configured test user and verifies the returned JWT', async () => {
     const response = await request(config.baseUrl)
       .post(AUTH.LOGIN)
       .set('Accept', 'application/json')

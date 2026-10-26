@@ -5,18 +5,14 @@ const { generateReference } = require('../../../data-generator/TestDataGenerator
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-const runIntegration = !!process.env.BASE_URL;
-const describeOrSkip = runIntegration ? describe : describe.skip;
 
 const sessionToken = process.env.CASHHUB_TEST_DATA_SESSION_TOKEN;
 
-const happyPathTest = sessionToken && process.env.CASHHUB_ENABLE_MUTATION_TESTS === 'true' ? test : test.skip;
-
-describeOrSkip('Otp - POST /api/v1/Otp/resend-otp', function() {
+describe('Otp - POST /api/v1/Otp/resend-otp', function() {
 
   describe('Happy Path', function() {
 
-    happyPathTest('should return 200 from POST /api/v1/Otp/resend-otp', async function() {
+    test('should return 200 from POST /api/v1/Otp/resend-otp', async function() {
       const response = await request(baseUrl)
         .post(OTP.RESEND_OTP)
         .set(getRequestHeaders())

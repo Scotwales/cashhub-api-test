@@ -4,8 +4,6 @@ const { getRequestHeaders } = require('../../../utilities/api');
 
 let baseUrl = process.env.BASE_URL;
 if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
-const runIntegration = !!process.env.BASE_URL;
-const describeOrSkip = runIntegration ? describe : describe.skip;
 
 const query = {};
 if (process.env.CASHHUB_TEST_PARAM_SEARCH) query.search = process.env.CASHHUB_TEST_PARAM_SEARCH;
@@ -17,13 +15,11 @@ if (process.env.CASHHUB_TEST_PARAM_DATE_TO) query.dateTo = process.env.CASHHUB_T
 if (process.env.CASHHUB_TEST_PARAM_PAGE) query.page = process.env.CASHHUB_TEST_PARAM_PAGE;
 if (process.env.CASHHUB_TEST_PARAM_PAGE_SIZE) query.pageSize = process.env.CASHHUB_TEST_PARAM_PAGE_SIZE;
 
-const happyPathTest = test;
-
-describeOrSkip('Pos - Terminal Management page feed — the paged terminal table', function() {
+describe('Pos - Terminal Management page feed — the paged terminal table', function() {
 
   describe('Happy Path', function() {
 
-    happyPathTest('should return 200 from GET /api/v1/pos/terminals', async function() {
+    test('should return 200 from GET /api/v1/pos/terminals', async function() {
       const response = await request(baseUrl)
         .get(POS.TERMINALS)
         .set(getRequestHeaders())

@@ -6,6 +6,7 @@
   "scripts": {
     "test": "node runTestsCashhub.js",
     "test:ci": "node runTestsCashhub.js all",
+    "test:contract": "npx jest tests/auth/authentication/authentication.contract.test.js --runInBand --config jest.config.cashhub.js",
     "test:cashhub": "node runTestsCashhub.js all",
     "test:direct": "npx jest --runInBand --config jest.config.cashhub.js",
     "generate:operation-tests": "node scripts/generate-operation-tests.js"
