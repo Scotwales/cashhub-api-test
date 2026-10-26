@@ -14,11 +14,6 @@ const STATUS = {
   SERVICE_UNAVAILABLE: 503
 };
 
-const FRAMEWORK_TEST_PATHS = {
-  QUERY_ENCODING: '/v1/accounts',
-  LOGGER: '/v1/test'
-};
-
 const ADMIN = {
   DELETE_POS_TERMINALS_AVAILABLE_BY_TERMINAL_REF: (terminalRef) => `/api/v1/admin/pos/terminals/available/${encodeURIComponent(terminalRef)}`,
   GET_POS_INVENTORY: '/api/v1/admin/pos/inventory',
@@ -147,7 +142,6 @@ const USER = {
 
 module.exports = {
   STATUS,
-  FRAMEWORK_TEST_PATHS,
   ADMIN,
   AUTH,
   NOTIFICATION,

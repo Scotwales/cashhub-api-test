@@ -4,7 +4,6 @@ module.exports = {
   setupFiles: [
     '<rootDir>/jest.setup.js'
   ],
-  globalSetup: '<rootDir>/jest.global-setup.js',
   testMatch: [
     '**/*.test.js'
   ],

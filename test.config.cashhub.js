@@ -1,82 +1,10 @@
 // test.config.cashhub.js - Cashhub API test suite configuration
 const testSuites = {
-  admin: {
-    name: 'Admin',
-    runner: 'tests/admin/run-tests-in-order.test.js',
-    description: 'Admin operations - POS inventory, terminals, and hardware requests',
-    tags: ['admin', 'pos', 'inventory', 'terminals']
-  },
   auth: {
     name: 'Authentication',
     runner: 'tests/auth/run-tests-in-order.test.js',
-    description: 'Authentication operations - login, refresh, logout, PIN and password flows',
-    tags: ['auth', 'login', 'password', 'pin', 'token']
-  },
-  notification: {
-    name: 'Notification',
-    runner: 'tests/notification/run-tests-in-order.test.js',
-    description: 'Notification operations - device registration and read receipts',
-    tags: ['notification', 'push', 'device']
-  },
-  otp: {
-    name: 'OTP',
-    runner: 'tests/otp/run-tests-in-order.test.js',
-    description: 'One-time password operations - send, resend, and verify',
-    tags: ['otp', 'verification']
-  },
-  outlet: {
-    name: 'Outlet',
-    runner: 'tests/outlet/run-tests-in-order.test.js',
-    description: 'Outlet operations - creation, updates, status changes, and trends',
-    tags: ['outlet', 'merchant']
-  },
-  pos: {
-    name: 'POS',
-    runner: 'tests/pos/run-tests-in-order.test.js',
-    description: 'POS terminal operations - listing and heartbeat',
-    tags: ['pos', 'terminal', 'heartbeat']
-  },
-  posauth: {
-    name: 'POS Authentication',
-    runner: 'tests/posauth/run-tests-in-order.test.js',
-    description: 'POS session operations - login, refresh, logout, and session lookup',
-    tags: ['pos', 'auth', 'session']
-  },
-  posavailableterminal: {
-    name: 'Available Terminals',
-    runner: 'tests/posavailableterminal/run-tests-in-order.test.js',
-    description: 'Available POS terminal inventory lookups',
-    tags: ['pos', 'terminals', 'available']
-  },
-  posinventory: {
-    name: 'POS Inventory',
-    runner: 'tests/posinventory/run-tests-in-order.test.js',
-    description: 'POS inventory models and availability lookups',
-    tags: ['pos', 'inventory']
-  },
-  posrequest: {
-    name: 'POS Requests',
-    runner: 'tests/posrequest/run-tests-in-order.test.js',
-    description: 'POS request lifecycle - submit, queue, assign, approve, reject, cancel, and receipt',
-    tags: ['pos', 'request', 'workflow']
-  },
-  terminal: {
-    name: 'Terminal',
-    runner: 'tests/terminal/run-tests-in-order.test.js',
-    description: 'Terminal operations - activation, deactivation, config, PIN, and passkey',
-    tags: ['terminal', 'activation', 'passkey']
-  },
-  user: {
-    name: 'User',
-    runner: 'tests/user/run-tests-in-order.test.js',
-    description: 'User profile operations',
-    tags: ['user', 'profile']
-  },
-  framework: {
-    name: 'Framework',
-    runner: 'tests/framework/run-tests-in-order.test.js',
-    description: 'Offline tests for reusable framework helpers',
-    tags: ['framework', 'offline', 'utilities']
+    description: 'Every operation documented by cashhub-authentication.json - auth, OTP, users, outlets, POS, terminals and notifications',
+    tags: ['auth', 'otp', 'user', 'outlet', 'pos', 'terminal', 'notification']
   }
 };
 
@@ -88,7 +16,7 @@ const testGroups = {
   },
   smoke: {
     description: 'Authentication and reference-data smoke tests',
-    suites: ['auth', 'otp', 'posinventory']
+    suites: ['auth']
   },
   regression: {
     description: 'Full Cashhub API regression suite',
@@ -96,11 +24,11 @@ const testGroups = {
   },
   auth: {
     description: 'Authentication and OTP tests',
-    suites: ['auth', 'otp', 'posauth']
+    suites: ['auth']
   },
   operations: {
     description: 'Cashhub business API tests',
-    suites: allSuites.filter(suite => suite !== 'framework')
+    suites: allSuites
   }
 };
 

@@ -395,6 +395,10 @@ function multipartParts(operation, body, emitter) {
 }
 
 function testSource(operation) {
+  const outputFile = operationTestPath(operation);
+  const relativeRoot = path.relative(path.dirname(outputFile), path.join(__dirname, '..'))
+    .split(path.sep)
+    .join('/');
   const pathArgs = pathParameters(operation).map(parameterVariable);
   const emitter = new Emitter(pathArgs);
   const details = responseDetails(operation);
@@ -505,14 +509,14 @@ function testSource(operation) {
 
   const lines = [];
   lines.push("const request = require('supertest');");
-  lines.push(`const { ${group}, STATUS } = require('../../test-data/constants');`);
-  lines.push("const { getRequestHeaders } = require('../../utilities/api');");
+  lines.push(`const { ${group}, STATUS } = require('${relativeRoot}/test-data/constants');`);
+  lines.push(`const { getRequestHeaders } = require('${relativeRoot}/utilities/api');`);
   if (emitter.uses.has('configUsername') || emitter.uses.has('configPassword')) {
-    lines.push("const config = require('../../config/config');");
+    lines.push(`const config = require('${relativeRoot}/config/config');`);
   }
   const generators = ['generateEmail', 'generateReference'].filter(name => emitter.uses.has(name));
   if (generators.length) {
-    lines.push(`const { ${generators.join(', ')} } = require('../../data-generator/TestDataGenerator');`);
+    lines.push(`const { ${generators.join(', ')} } = require('${relativeRoot}/data-generator/TestDataGenerator');`);
   }
   lines.push('');
   lines.push('let baseUrl = process.env.BASE_URL;');
@@ -608,11 +612,6 @@ function constantsSource() {
     '  INTERNAL_SERVER_ERROR: 500,',
     '  SERVICE_UNAVAILABLE: 503',
     '};',
-    '',
-    'const FRAMEWORK_TEST_PATHS = {',
-    "  QUERY_ENCODING: '/v1/accounts',",
-    "  LOGGER: '/v1/test'",
-    '};',
     ''
   ];
 
@@ -628,7 +627,7 @@ function constantsSource() {
 
   const groups = [...groupOperations.keys()].sort();
   lines.push('module.exports = {');
-  lines.push(['  STATUS', '  FRAMEWORK_TEST_PATHS', ...groups.map(group => `  ${group}`)].join(',\n'));
+  lines.push(['  STATUS', ...groups.map(group => `  ${group}`)].join(',\n'));
   lines.push('};');
   return `${lines.join('\n')}\n`;
 }
