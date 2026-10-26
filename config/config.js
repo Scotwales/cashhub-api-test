@@ -7,12 +7,9 @@ require('dotenv').config({
 
 const config = {
   baseUrl: (process.env.BASE_URL || '').trim().replace(/\/+$/, ''),
-  authUrl: (process.env.AUTH_URL || '').trim(),
-  clientId: (process.env.CLIENT_ID || '').trim(),
-  clientSecret: (process.env.CLIENT_SECRET || '').trim(),
-  grantType: (process.env.GRANT_TYPE || '').trim(),
   apiToken: (process.env.API_TOKEN || '').trim(),
-  authScheme: (process.env.AUTH_SCHEME || 'Bearer').trim()
+  testUsername: (process.env.CASHHUB_TEST_USERNAME || '').trim(),
+  testPassword: process.env.CASHHUB_TEST_PASSWORD || ''
 };
 
 module.exports = config;

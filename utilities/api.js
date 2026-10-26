@@ -1,6 +1,5 @@
 const request = require('supertest');
 const config = require('../config/config');
-const { getAccessToken } = require('./token');
 const { assertSecureUrl } = require('./url');
 
 const HTTP_METHODS = {
@@ -41,12 +40,7 @@ function buildPath(path, query) {
   return search ? `${path}?${search}` : path;
 }
 
-async function getRequestHeaders({ body, headers = {} } = {}) {
-  const hasOAuth = Boolean(config.authUrl || config.clientId || config.clientSecret || config.grantType);
-  if (hasOAuth && config.apiToken) {
-    throw new Error('Configure either API_TOKEN or OAuth credentials, not both.');
-  }
-
+function getRequestHeaders({ body, headers = {} } = {}) {
   const result = {
     Accept: 'application/json',
     ...headers
@@ -55,9 +49,7 @@ async function getRequestHeaders({ body, headers = {} } = {}) {
     result['Content-Type'] = 'application/json';
   }
   if (config.apiToken) {
-    result.Authorization = `${config.authScheme} ${config.apiToken}`;
-  } else if (hasOAuth) {
-    result.Authorization = `Bearer ${await getAccessToken()}`;
+    result.Authorization = `Bearer ${config.apiToken}`;
   }
   return result;
 }
@@ -76,7 +68,7 @@ async function apiRequest(method, path, { body, query, headers } = {}) {
 
   const httpRequest = request(config.baseUrl)
     [supertestMethod](buildPath(path, query))
-    .set(await getRequestHeaders({ body, headers }));
+    .set(getRequestHeaders({ body, headers }));
   if (body !== undefined) {
     httpRequest.send(body);
   }
@@ -90,7 +82,7 @@ async function postMultipart(path, fields = {}, { headers } = {}) {
   assertSecureUrl(config.baseUrl, 'BASE_URL');
   const httpRequest = request(config.baseUrl)
     .post(buildPath(path))
-    .set(await getRequestHeaders({ headers }));
+    .set(getRequestHeaders({ headers }));
   for (const [name, value] of Object.entries(fields)) {
     httpRequest.field(name, String(value));
   }

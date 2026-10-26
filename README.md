@@ -1,6 +1,6 @@
 # Cashhub API Test Framework
 
-This repository contains a reusable Jest and SuperTest framework based on the approved Open Banking test-suite architecture. It intentionally contains no Cashhub endpoint tests or assumed Cashhub authentication/signing rules.
+This repository contains a Jest and SuperTest framework based on the approved Open Banking test-suite architecture, with contract checks and opt-in integration tests for the CashHub Authentication API.
 
 ## Requirements
 
@@ -15,7 +15,7 @@ npm ci
 cp .env.example .env
 ```
 
-Set `BASE_URL` and only the authentication settings supported by the Cashhub API. The framework supports unauthenticated requests, a configured bearer-style token, or a conventional OAuth client-credentials token endpoint. It does not add signing headers.
+Set `BASE_URL` to the API service root and only use a CashHub JWT with the `Bearer` scheme. The Swagger document does not define OAuth client credentials. Set `CASHHUB_TEST_USERNAME` and `CASHHUB_TEST_PASSWORD` to enable the opt-in login integration case. Use a dedicated test account; tests do not register users, request OTPs, change PINs/passwords, or invalidate sessions.
 
 ## Commands
 
@@ -34,9 +34,11 @@ Jest HTML reports are written to `reports/`; CI runs also produce `reports/ci/ju
 - `utilities/logger.js`: captures request/response details for terminal and HTML reports, redacting sensitive fields.
 - `utilities/response.js`: response-body extraction helpers.
 - `utilities/sharedFixtures.js`: isolated, permission-restricted fixture storage for a test run.
-- `utilities/token.js` and `utilities/url.js`: optional OAuth and URL validation helpers.
+- `utilities/url.js`: URL validation helper.
+- `openapi/cashhub-authentication.json`: API contract used by the offline contract tests.
 - `tests/framework/`: offline tests of framework behavior; no Cashhub API calls are made.
+- `tests/authentication/`: contract tests and opt-in CashHub Authentication API integration tests.
 
-Add Cashhub integration tests under `tests/` after the API contract and authentication requirements are available. Use direct Jest `describe`/`test` blocks and SuperTest request chains, keeping request fields and assertions aligned with the Cashhub specification.
+The OpenAPI document provides no `servers` URL. Configure `BASE_URL` to the service root matching the environment's deployment routing; the API route paths in the tests are copied from the specification.
 
 `apiRequest(method, path, options)` executes the request and resolves to its SuperTest response. For tests that need an explicit `.set().send().expect()` chain, use `request(baseUrl)` directly; the installed logger records those requests too.
