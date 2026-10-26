@@ -50,16 +50,19 @@ The target-based runner in `runTestsCashhub.js` accepts `all`, suite targets (`a
 - `utilities/response.js`: response-body extraction helpers.
 - `utilities/sharedFixtures.js`: isolated, permission-restricted fixture storage for a test run.
 - `utilities/url.js`: URL validation helper.
-- `openapi/cashhub-authentication.json`: API contract used by offline contract and operation tests.
-- `test-data/`: API endpoint mappings, schema-informed request-data builders, and authentication payload factories based on the OpenAPI contract.
-- `tests/<openapi-tag>/`: one standalone Jest file per documented API operation, grouped by the operation's OpenAPI tag; integrations are individually skipped until their environment and test data are configured. Regenerate these files after updating the schema with `npm run generate:operation-tests`.
+- `openapi/cashhub-authentication.json`: API contract used by the offline contract tests and by the operation-test generator.
+- `test-data/constants.js`: endpoint constants per OpenAPI tag, the shared `STATUS` map, and framework test paths. Generated alongside the operation tests.
+- `test-data/`: schema-informed request-data builders and authentication payload factories used by the framework and contract tests.
+- `tests/<openapi-tag>/`: one standalone Jest file per documented API operation in the Smartsend style: endpoint constant, `describeOrSkip` on `BASE_URL`, and `Happy Path` / `Negative Cases` blocks. Regenerate these files after updating the schema with `npm run generate:operation-tests`.
 - `tests/<openapi-tag>/test-suite.config.js`: the ordered list of test files for that suite, mirroring the Smartsend replica.
 - `tests/<openapi-tag>/run-tests-in-order.test.js`: the suite entry point that requires each file in `testOrder` inside its own `describe`, so `test.config.cashhub.js` targets a single ordered runner per suite instead of a directory.
 - `tests/auth/`: authentication contract and opt-in login tests.
 - `tests/framework/`: offline tests for reusable framework helpers.
 
-Every API operation has its own Jest test file, an offline OpenAPI contract check, and an individual SuperTest integration case. Integration cases are skipped when required environment settings or data fixtures are unavailable. Mutating operations remain disabled unless explicitly enabled with `CASHHUB_ENABLE_MUTATION_TESTS=true`.
+Every API operation has its own Jest test file written in the Smartsend style: the endpoint comes from `test-data/constants.js`, the suite is wrapped in `describeOrSkip` so it only runs when `BASE_URL` is set, and the documented happy path is paired with the negative cases the OpenAPI response codes make testable (404 for path-parameter operations, 401/403 for operations that document authentication failures). Happy paths are skipped until the path, body, and upload fixtures they need are configured. Mutating operations remain disabled unless explicitly enabled with `CASHHUB_ENABLE_MUTATION_TESTS=true`.
 
-The OpenAPI document provides no `servers` URL. Configure `BASE_URL` to the service root matching the environment's deployment routing. Endpoint paths are sourced from the specification and test-data helpers, not embedded in operation test files.
+Because there is no reachable reference environment for this repository, negative cases assert only status codes the OpenAPI document declares; they do not assert error messages or field-level validation text. Add observed assertions once a disposable Cashhub environment is available.
+
+The OpenAPI document provides no `servers` URL. Configure `BASE_URL` to the service root matching the environment's deployment routing. Endpoint paths live in `test-data/constants.js` and are generated from the specification.
 
 `apiRequest(method, path, options)` executes the request and resolves to its SuperTest response. For tests that need an explicit `.set().send().expect()` chain, use `request(baseUrl)` directly; the installed logger records those requests too.

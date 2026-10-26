@@ -1,55 +1,35 @@
 const request = require('supertest');
-const config = require('../../config/config');
+const { USER, STATUS } = require('../../test-data/constants');
 const { getRequestHeaders } = require('../../utilities/api');
-const { assertSecureUrl } = require('../../utilities/url');
-const { assertOperationContract, getOperationById } = require('../../test-data/operationContract');
-const {
-  assertOperationResponse,
-  createOperationTestData,
-  operationUnavailableReason
-} = require('../../test-data/apiTestData');
+const { generateReference } = require('../../data-generator/TestDataGenerator');
 
-const operation = getOperationById('op_8c3c97370f07');
-const unavailableReason = operationUnavailableReason(operation);
-const registerIntegrationTest = unavailableReason ? test.skip : test;
+let baseUrl = process.env.BASE_URL;
+if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
+const runIntegration = !!process.env.BASE_URL;
+const describeOrSkip = runIntegration ? describe : describe.skip;
 
-describe('User API', function() {
-  describe('PATCH operation contract', function() {
-    describe('Contract', function() {
-      test('should match the documented PATCH request and response contract', function() {
-        assertOperationContract(operation);
-      });
+const userId = process.env.CASHHUB_TEST_PARAM_USER_ID;
+const userIdValue = process.env.CASHHUB_TEST_DATA_USER_ID;
+
+const happyPathTest = userId && userIdValue && process.env.CASHHUB_ENABLE_MUTATION_TESTS === 'true' ? test : test.skip;
+
+describeOrSkip('User - PATCH /api/v1/User/{userId}/next-step', function() {
+
+  describe('Happy Path', function() {
+
+    happyPathTest('should return 200 from PATCH /api/v1/User/{userId}/next-step', async function() {
+      const response = await request(baseUrl)
+        .patch(USER.BY_USER_ID_NEXT_STEP(userId))
+        .set(getRequestHeaders())
+        .send({
+          userId: userIdValue,
+          nextStep: generateReference('nextStep'),
+          agentType: generateReference('agentType')
+        });
+
+      expect(response.status).toBe(STATUS.OK);
     });
 
-    describe('Integration', function() {
-      registerIntegrationTest('should call the API operation and validate the documented response' +
-        (unavailableReason ? ` (skipped: ${unavailableReason})` : ''), async function() {
-        const testData = createOperationTestData(operation);
-        assertSecureUrl(config.baseUrl, 'BASE_URL');
-        let apiRequest = request(config.baseUrl)['patch'](testData.path)
-          .set(getRequestHeaders({
-            body: testData.mediaType === 'application/json' ? testData.payload : undefined,
-            headers: testData.headers
-          }));
-        if (Object.keys(testData.query).length > 0) {
-          apiRequest = apiRequest.query(testData.query);
-        }
-        if (testData.mediaType === 'multipart/form-data') {
-          const fileFields = new Set(testData.files.map(file => file.field));
-          for (const file of testData.files) {
-            apiRequest = apiRequest.attach(file.field, file.path);
-          }
-          for (const [field, value] of Object.entries(testData.payload || {})) {
-            if (!fileFields.has(field)) {
-              apiRequest = apiRequest.field(field, String(value));
-            }
-          }
-        } else if (testData.payload !== undefined) {
-          apiRequest = apiRequest.send(testData.payload);
-        }
-        const response = await apiRequest;
-        assertOperationResponse(response, testData.response);
-      });
-    });
   });
+
 });

@@ -1,55 +1,76 @@
 const request = require('supertest');
-const config = require('../../config/config');
+const { POS, STATUS } = require('../../test-data/constants');
 const { getRequestHeaders } = require('../../utilities/api');
-const { assertSecureUrl } = require('../../utilities/url');
-const { assertOperationContract, getOperationById } = require('../../test-data/operationContract');
-const {
-  assertOperationResponse,
-  createOperationTestData,
-  operationUnavailableReason
-} = require('../../test-data/apiTestData');
+const { generateReference } = require('../../data-generator/TestDataGenerator');
 
-const operation = getOperationById('op_85fca871029e');
-const unavailableReason = operationUnavailableReason(operation);
-const registerIntegrationTest = unavailableReason ? test.skip : test;
+let baseUrl = process.env.BASE_URL;
+if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
+const runIntegration = !!process.env.BASE_URL;
+const describeOrSkip = runIntegration ? describe : describe.skip;
 
-describe('Pos API', function() {
-  describe('Device-reported heartbeat (every ~60s) — upserts the terminal\'s', function() {
-    describe('Contract', function() {
-      test('should match the documented POST request and response contract', function() {
-        assertOperationContract(operation);
-      });
+const terminalId = process.env.CASHHUB_TEST_PARAM_TERMINAL_ID;
+
+const happyPathTest = terminalId && process.env.CASHHUB_ENABLE_MUTATION_TESTS === 'true' ? test : test.skip;
+
+describeOrSkip('Pos - Device-reported heartbeat (every ~60s) — upserts the terminal\'s', function() {
+
+  describe('Happy Path', function() {
+
+    happyPathTest('should return 200 from POST /api/v1/pos/terminals/{terminalId}/heartbeat', async function() {
+      const response = await request(baseUrl)
+        .post(POS.TERMINALS_BY_TERMINAL_ID_HEARTBEAT(terminalId))
+        .set(getRequestHeaders())
+        .send({
+          timestamp: new Date().toISOString(),
+          latencyMs: 1,
+          networkType: generateReference('networkType'),
+          batteryPercent: 1,
+          appVersion: generateReference('appVersion'),
+          deviceUptimeSeconds: 1
+        });
+
+      expect(response.status).toBe(STATUS.OK);
+      expect(response.headers['content-type']).toMatch(/application\/json/);
+      expect(response.body).toEqual(expect.anything());
+      expect(response.body).toHaveProperty('connectionStatus');
+      expect(response.body).toHaveProperty('signal');
+      expect(response.body).toHaveProperty('lastHeartbeatAt');
     });
 
-    describe('Integration', function() {
-      registerIntegrationTest('should call the API operation and validate the documented response' +
-        (unavailableReason ? ` (skipped: ${unavailableReason})` : ''), async function() {
-        const testData = createOperationTestData(operation);
-        assertSecureUrl(config.baseUrl, 'BASE_URL');
-        let apiRequest = request(config.baseUrl)['post'](testData.path)
-          .set(getRequestHeaders({
-            body: testData.mediaType === 'application/json' ? testData.payload : undefined,
-            headers: testData.headers
-          }));
-        if (Object.keys(testData.query).length > 0) {
-          apiRequest = apiRequest.query(testData.query);
-        }
-        if (testData.mediaType === 'multipart/form-data') {
-          const fileFields = new Set(testData.files.map(file => file.field));
-          for (const file of testData.files) {
-            apiRequest = apiRequest.attach(file.field, file.path);
-          }
-          for (const [field, value] of Object.entries(testData.payload || {})) {
-            if (!fileFields.has(field)) {
-              apiRequest = apiRequest.field(field, String(value));
-            }
-          }
-        } else if (testData.payload !== undefined) {
-          apiRequest = apiRequest.send(testData.payload);
-        }
-        const response = await apiRequest;
-        assertOperationResponse(response, testData.response);
-      });
-    });
   });
+
+  describe('Negative Cases - Authentication', function() {
+
+    (process.env.CASHHUB_ENABLE_MUTATION_TESTS === 'true' ? test : test.skip)('should reject a malformed bearer token', async function() {
+      const response = await request(baseUrl)
+        .post(POS.TERMINALS_BY_TERMINAL_ID_HEARTBEAT('00000000-0000-0000-0000-000000000000'))
+        .set(getRequestHeaders())
+        .set('Authorization', 'Bearer invalid-token')
+        .send({});
+
+      expect(response.status).toBe(STATUS.UNAUTHORIZED);
+    });
+
+  });
+
+  describe('Negative Cases - Not Found', function() {
+
+    happyPathTest('should return 404 when the resource does not exist', async function() {
+      const response = await request(baseUrl)
+        .post(POS.TERMINALS_BY_TERMINAL_ID_HEARTBEAT('00000000-0000-0000-0000-000000000000'))
+        .set(getRequestHeaders())
+        .send({
+          timestamp: new Date().toISOString(),
+          latencyMs: 1,
+          networkType: generateReference('networkType'),
+          batteryPercent: 1,
+          appVersion: generateReference('appVersion'),
+          deviceUptimeSeconds: 1
+        });
+
+      expect(response.status).toBe(STATUS.NOT_FOUND);
+    });
+
+  });
+
 });

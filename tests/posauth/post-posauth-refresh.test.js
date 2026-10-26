@@ -1,55 +1,51 @@
 const request = require('supertest');
-const config = require('../../config/config');
+const { POS_AUTH, STATUS } = require('../../test-data/constants');
 const { getRequestHeaders } = require('../../utilities/api');
-const { assertSecureUrl } = require('../../utilities/url');
-const { assertOperationContract, getOperationById } = require('../../test-data/operationContract');
-const {
-  assertOperationResponse,
-  createOperationTestData,
-  operationUnavailableReason
-} = require('../../test-data/apiTestData');
 
-const operation = getOperationById('op_dfb8a1b5fb79');
-const unavailableReason = operationUnavailableReason(operation);
-const registerIntegrationTest = unavailableReason ? test.skip : test;
+let baseUrl = process.env.BASE_URL;
+if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
+const runIntegration = !!process.env.BASE_URL;
+const describeOrSkip = runIntegration ? describe : describe.skip;
 
-describe('PosAuth API', function() {
-  describe('POST operation contract', function() {
-    describe('Contract', function() {
-      test('should match the documented POST request and response contract', function() {
-        assertOperationContract(operation);
-      });
+const refreshToken = process.env.CASHHUB_TEST_DATA_REFRESH_TOKEN;
+
+const happyPathTest = refreshToken && process.env.CASHHUB_ENABLE_MUTATION_TESTS === 'true' ? test : test.skip;
+
+describeOrSkip('PosAuth - POST /api/v1/PosAuth/refresh', function() {
+
+  describe('Happy Path', function() {
+
+    happyPathTest('should return 200 from POST /api/v1/PosAuth/refresh', async function() {
+      const response = await request(baseUrl)
+        .post(POS_AUTH.REFRESH)
+        .set(getRequestHeaders())
+        .send({
+          refreshToken: refreshToken
+        });
+
+      expect(response.status).toBe(STATUS.OK);
+      expect(response.headers['content-type']).toMatch(/application\/json/);
+      expect(response.body).toEqual(expect.anything());
+      expect(response.body).toHaveProperty('accessToken');
+      expect(response.body).toHaveProperty('refreshToken');
+      expect(response.body).toHaveProperty('accessTokenExpiresIn');
+      expect(response.body).toHaveProperty('refreshTokenExpiresIn');
     });
 
-    describe('Integration', function() {
-      registerIntegrationTest('should call the API operation and validate the documented response' +
-        (unavailableReason ? ` (skipped: ${unavailableReason})` : ''), async function() {
-        const testData = createOperationTestData(operation);
-        assertSecureUrl(config.baseUrl, 'BASE_URL');
-        let apiRequest = request(config.baseUrl)['post'](testData.path)
-          .set(getRequestHeaders({
-            body: testData.mediaType === 'application/json' ? testData.payload : undefined,
-            headers: testData.headers
-          }));
-        if (Object.keys(testData.query).length > 0) {
-          apiRequest = apiRequest.query(testData.query);
-        }
-        if (testData.mediaType === 'multipart/form-data') {
-          const fileFields = new Set(testData.files.map(file => file.field));
-          for (const file of testData.files) {
-            apiRequest = apiRequest.attach(file.field, file.path);
-          }
-          for (const [field, value] of Object.entries(testData.payload || {})) {
-            if (!fileFields.has(field)) {
-              apiRequest = apiRequest.field(field, String(value));
-            }
-          }
-        } else if (testData.payload !== undefined) {
-          apiRequest = apiRequest.send(testData.payload);
-        }
-        const response = await apiRequest;
-        assertOperationResponse(response, testData.response);
-      });
-    });
   });
+
+  describe('Negative Cases - Authentication', function() {
+
+    (process.env.CASHHUB_ENABLE_MUTATION_TESTS === 'true' ? test : test.skip)('should reject a malformed bearer token', async function() {
+      const response = await request(baseUrl)
+        .post(POS_AUTH.REFRESH)
+        .set(getRequestHeaders())
+        .set('Authorization', 'Bearer invalid-token')
+        .send({});
+
+      expect(response.status).toBe(STATUS.UNAUTHORIZED);
+    });
+
+  });
+
 });

@@ -61,10 +61,10 @@ describe('CashHub Authentication API contract', () => {
   });
 
   test('current-user and OTP operations document the expected paths and fields', () => {
-    expect(api.paths[AUTH.CURRENT_USER].get.responses).toHaveProperty('401');
-    expect(Object.keys(responseSchema(AUTH.CURRENT_USER, 'get', '200').properties))
+    expect(api.paths[AUTH.ME].get.responses).toHaveProperty('401');
+    expect(Object.keys(responseSchema(AUTH.ME, 'get', '200').properties))
       .toContain('accountId');
-    expect(Object.keys(requestSchema(OTP.VERIFY).properties).sort()).toEqual([
+    expect(Object.keys(requestSchema(OTP.VERIFY_OTP).properties).sort()).toEqual([
       'channel',
       'deviceFingerprint',
       'otpCode',
@@ -72,7 +72,7 @@ describe('CashHub Authentication API contract', () => {
       'rememberMe',
       'sessionToken'
     ]);
-    expect(api.paths[OTP.VERIFY].post.responses).toHaveProperty('429');
+    expect(api.paths[OTP.VERIFY_OTP].post.responses).toHaveProperty('429');
   });
 
   test('keeps one standalone test file for every documented API operation', () => {

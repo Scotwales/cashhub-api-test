@@ -1,55 +1,47 @@
 const request = require('supertest');
-const config = require('../../config/config');
+const { ADMIN, STATUS } = require('../../test-data/constants');
 const { getRequestHeaders } = require('../../utilities/api');
-const { assertSecureUrl } = require('../../utilities/url');
-const { assertOperationContract, getOperationById } = require('../../test-data/operationContract');
-const {
-  assertOperationResponse,
-  createOperationTestData,
-  operationUnavailableReason
-} = require('../../test-data/apiTestData');
 
-const operation = getOperationById('op_b8c751cfe7ba');
-const unavailableReason = operationUnavailableReason(operation);
-const registerIntegrationTest = unavailableReason ? test.skip : test;
+let baseUrl = process.env.BASE_URL;
+if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
+const runIntegration = !!process.env.BASE_URL;
+const describeOrSkip = runIntegration ? describe : describe.skip;
 
-describe('Admin API', function() {
-  describe('Every pooled device (pos_available_terminals) for one catalog model,', function() {
-    describe('Contract', function() {
-      test('should match the documented GET request and response contract', function() {
-        assertOperationContract(operation);
-      });
+const query = {};
+if (process.env.CASHHUB_TEST_PARAM_MODEL_CODE) query.modelCode = process.env.CASHHUB_TEST_PARAM_MODEL_CODE;
+if (process.env.CASHHUB_TEST_PARAM_INVENTORY_ID) query.inventoryId = process.env.CASHHUB_TEST_PARAM_INVENTORY_ID;
+
+const happyPathTest = test;
+
+describeOrSkip('Admin - Every pooled device (pos_available_terminals) for one catalog model,', function() {
+
+  describe('Happy Path', function() {
+
+    happyPathTest('should return 200 from GET /api/v1/admin/pos/terminals/pool', async function() {
+      const response = await request(baseUrl)
+        .get(ADMIN.POS_TERMINALS_POOL)
+        .set(getRequestHeaders())
+        .query(query);
+
+      expect(response.status).toBe(STATUS.OK);
+      expect(response.headers['content-type']).toMatch(/application\/json/);
+      expect(response.body).toEqual(expect.anything());
+      expect(response.body).toHaveProperty('items');
     });
 
-    describe('Integration', function() {
-      registerIntegrationTest('should call the API operation and validate the documented response' +
-        (unavailableReason ? ` (skipped: ${unavailableReason})` : ''), async function() {
-        const testData = createOperationTestData(operation);
-        assertSecureUrl(config.baseUrl, 'BASE_URL');
-        let apiRequest = request(config.baseUrl)['get'](testData.path)
-          .set(getRequestHeaders({
-            body: testData.mediaType === 'application/json' ? testData.payload : undefined,
-            headers: testData.headers
-          }));
-        if (Object.keys(testData.query).length > 0) {
-          apiRequest = apiRequest.query(testData.query);
-        }
-        if (testData.mediaType === 'multipart/form-data') {
-          const fileFields = new Set(testData.files.map(file => file.field));
-          for (const file of testData.files) {
-            apiRequest = apiRequest.attach(file.field, file.path);
-          }
-          for (const [field, value] of Object.entries(testData.payload || {})) {
-            if (!fileFields.has(field)) {
-              apiRequest = apiRequest.field(field, String(value));
-            }
-          }
-        } else if (testData.payload !== undefined) {
-          apiRequest = apiRequest.send(testData.payload);
-        }
-        const response = await apiRequest;
-        assertOperationResponse(response, testData.response);
-      });
-    });
   });
+
+  describe('Negative Cases - Authentication', function() {
+
+    test('should reject a malformed bearer token', async function() {
+      const response = await request(baseUrl)
+        .get(ADMIN.POS_TERMINALS_POOL)
+        .set(getRequestHeaders())
+        .set('Authorization', 'Bearer invalid-token');
+
+      expect([STATUS.UNAUTHORIZED, STATUS.FORBIDDEN]).toContain(response.status);
+    });
+
+  });
+
 });

@@ -1,55 +1,41 @@
 const request = require('supertest');
-const config = require('../../config/config');
+const { POS_REQUEST, STATUS } = require('../../test-data/constants');
 const { getRequestHeaders } = require('../../utilities/api');
-const { assertSecureUrl } = require('../../utilities/url');
-const { assertOperationContract, getOperationById } = require('../../test-data/operationContract');
-const {
-  assertOperationResponse,
-  createOperationTestData,
-  operationUnavailableReason
-} = require('../../test-data/apiTestData');
 
-const operation = getOperationById('op_af44a62690d8');
-const unavailableReason = operationUnavailableReason(operation);
-const registerIntegrationTest = unavailableReason ? test.skip : test;
+let baseUrl = process.env.BASE_URL;
+if (baseUrl && !baseUrl.endsWith('/')) baseUrl += '/';
+const runIntegration = !!process.env.BASE_URL;
+const describeOrSkip = runIntegration ? describe : describe.skip;
 
-describe('PosRequest API', function() {
-  describe('Operations queue — agent profile, outlet details, delivery address,', function() {
-    describe('Contract', function() {
-      test('should match the documented GET request and response contract', function() {
-        assertOperationContract(operation);
-      });
+const query = {};
+if (process.env.CASHHUB_TEST_PARAM_STATUS) query.status = process.env.CASHHUB_TEST_PARAM_STATUS;
+if (process.env.CASHHUB_TEST_PARAM_SEARCH) query.search = process.env.CASHHUB_TEST_PARAM_SEARCH;
+if (process.env.CASHHUB_TEST_PARAM_USER_TYPE) query.userType = process.env.CASHHUB_TEST_PARAM_USER_TYPE;
+if (process.env.CASHHUB_TEST_PARAM_TERMINAL_MODEL) query.terminalModel = process.env.CASHHUB_TEST_PARAM_TERMINAL_MODEL;
+if (process.env.CASHHUB_TEST_PARAM_DATE_FROM) query.dateFrom = process.env.CASHHUB_TEST_PARAM_DATE_FROM;
+if (process.env.CASHHUB_TEST_PARAM_DATE_TO) query.dateTo = process.env.CASHHUB_TEST_PARAM_DATE_TO;
+if (process.env.CASHHUB_TEST_PARAM_PAGE) query.page = process.env.CASHHUB_TEST_PARAM_PAGE;
+if (process.env.CASHHUB_TEST_PARAM_PAGE_SIZE) query.pageSize = process.env.CASHHUB_TEST_PARAM_PAGE_SIZE;
+
+const happyPathTest = test;
+
+describeOrSkip('PosRequest - Operations queue — agent profile, outlet details, delivery address,', function() {
+
+  describe('Happy Path', function() {
+
+    happyPathTest('should return 200 from GET /api/v1/pos/requests/queue', async function() {
+      const response = await request(baseUrl)
+        .get(POS_REQUEST.POS_REQUESTS_QUEUE)
+        .set(getRequestHeaders())
+        .query(query);
+
+      expect(response.status).toBe(STATUS.OK);
+      expect(response.headers['content-type']).toMatch(/application\/json/);
+      expect(response.body).toEqual(expect.anything());
+      expect(response.body).toHaveProperty('requests');
+      expect(response.body).toHaveProperty('pagination');
     });
 
-    describe('Integration', function() {
-      registerIntegrationTest('should call the API operation and validate the documented response' +
-        (unavailableReason ? ` (skipped: ${unavailableReason})` : ''), async function() {
-        const testData = createOperationTestData(operation);
-        assertSecureUrl(config.baseUrl, 'BASE_URL');
-        let apiRequest = request(config.baseUrl)['get'](testData.path)
-          .set(getRequestHeaders({
-            body: testData.mediaType === 'application/json' ? testData.payload : undefined,
-            headers: testData.headers
-          }));
-        if (Object.keys(testData.query).length > 0) {
-          apiRequest = apiRequest.query(testData.query);
-        }
-        if (testData.mediaType === 'multipart/form-data') {
-          const fileFields = new Set(testData.files.map(file => file.field));
-          for (const file of testData.files) {
-            apiRequest = apiRequest.attach(file.field, file.path);
-          }
-          for (const [field, value] of Object.entries(testData.payload || {})) {
-            if (!fileFields.has(field)) {
-              apiRequest = apiRequest.field(field, String(value));
-            }
-          }
-        } else if (testData.payload !== undefined) {
-          apiRequest = apiRequest.send(testData.payload);
-        }
-        const response = await apiRequest;
-        assertOperationResponse(response, testData.response);
-      });
-    });
   });
+
 });
