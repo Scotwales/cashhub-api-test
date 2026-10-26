@@ -53,6 +53,8 @@ The target-based runner in `runTestsCashhub.js` accepts `all`, suite targets (`a
 - `openapi/cashhub-authentication.json`: API contract used by offline contract and operation tests.
 - `test-data/`: API endpoint mappings, schema-informed request-data builders, and authentication payload factories based on the OpenAPI contract.
 - `tests/<openapi-tag>/`: one standalone Jest file per documented API operation, grouped by the operation's OpenAPI tag; integrations are individually skipped until their environment and test data are configured. Regenerate these files after updating the schema with `npm run generate:operation-tests`.
+- `tests/<openapi-tag>/test-suite.config.js`: the ordered list of test files for that suite, mirroring the Smartsend replica.
+- `tests/<openapi-tag>/run-tests-in-order.test.js`: the suite entry point that requires each file in `testOrder` inside its own `describe`, so `test.config.cashhub.js` targets a single ordered runner per suite instead of a directory.
 - `tests/auth/`: authentication contract and opt-in login tests.
 - `tests/framework/`: offline tests for reusable framework helpers.
 
