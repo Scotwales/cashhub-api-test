@@ -1,0 +1,22 @@
+{
+  "name": "cashhub-api-tests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "API test framework for Cashhub",
+  "scripts": {
+    "test": "jest --runInBand --config jest.config.cashhub.js",
+    "test:ci": "jest --runInBand --config jest.config.cashhub.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "supertest": "^7.1.4"
+  },
+  "devDependencies": {
+    "jest": "^30.5.2",
+    "jest-html-reporters": "^3.1.7",
+    "jest-junit": "^16.0.0"
+  }
+}
