@@ -1,7 +1,7 @@
 const path = require('path');
 const { testOrder } = require('./test-suite.config');
 
-describe('POS Inventory - Ordered Execution', () => {
+describe('Authentication - PosInventory - Ordered Execution', () => {
   testOrder.forEach((testFile) => {
     const testPath = path.join(__dirname, testFile);
     const testName = path.basename(testFile, '.test.js');

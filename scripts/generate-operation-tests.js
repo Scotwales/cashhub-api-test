@@ -1,8 +1,25 @@
 const fs = require('fs');
 const path = require('path');
-const api = require('../openapi/cashhub-authentication.json');
-const { API_OPERATIONS } = require('../test-data/openApi');
-const { operationTestPath } = require('../test-data/operationContract');
+const {
+  descriptionFor,
+  displayNameFor,
+  normalizeSpec,
+  parseDocument,
+  readSource,
+  slugify,
+  suiteNameFor
+} = require('./lib/openapi-spec');
+
+const REPO_ROOT = path.join(__dirname, '..');
+const DEFAULT_SPEC = path.join(REPO_ROOT, 'openapi', 'cashhub-authentication.json');
+const DEFAULT_SUITE = 'auth';
+const HTTP_METHODS = new Set(['get', 'post', 'put', 'patch', 'delete', 'head', 'options']);
+
+let api;
+let API_OPERATIONS = [];
+let groupOperations = new Map();
+let constantNames = new Map();
+let outputSuite = DEFAULT_SUITE;
 
 const STATUS_NAMES = {
   200: 'OK',
@@ -91,26 +108,69 @@ function operationConstantBase(operation) {
   return /^[0-9]/.test(key) ? `_${key}` : key;
 }
 
-const groupOperations = new Map();
-for (const operation of API_OPERATIONS) {
-  const group = groupName(operation.tag);
-  if (!groupOperations.has(group)) {
-    groupOperations.set(group, []);
-  }
-  groupOperations.get(group).push(operation);
+function buildOperations(spec) {
+  return Object.entries(spec.paths || {}).flatMap(([route, pathItem]) =>
+    Object.entries(pathItem || {})
+      .filter(([method]) => HTTP_METHODS.has(method))
+      .map(([method, operation]) => ({
+        api: spec,
+        tag: operation.tags?.[0] || 'untagged',
+        method,
+        path: route,
+        operation
+      }))
+  );
 }
 
-const constantNames = new Map();
-for (const [group, operations] of groupOperations) {
-  const counts = new Map();
+function suiteFolderName(tag) {
+  const folder = tag
+    .replace(/[^a-zA-Z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase();
+  // The Auth tag expands to "authentication" to avoid a confusing
+  // tests/<suite>/auth/ nesting.
+  return folder === 'auth' ? 'authentication' : folder || 'default';
+}
+
+function operationTestPath(operation, suite = outputSuite) {
+  const suffix = operation.path
+    .replace(/^\/api\/v1\//, '')
+    .replace(/\{([^}]+)\}/g, 'by-$1')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase();
+  return path.join(
+    REPO_ROOT,
+    'tests',
+    suite,
+    suiteFolderName(operation.tag),
+    `${operation.method}-${suffix || 'root'}.test.js`
+  );
+}
+
+function prepareOperations(operations) {
+  groupOperations = new Map();
+  constantNames = new Map();
+
   for (const operation of operations) {
-    const base = operationConstantBase(operation);
-    counts.set(base, (counts.get(base) || 0) + 1);
+    const group = groupName(operation.tag);
+    if (!groupOperations.has(group)) {
+      groupOperations.set(group, []);
+    }
+    groupOperations.get(group).push(operation);
   }
-  for (const operation of operations) {
-    const base = operationConstantBase(operation);
-    const key = counts.get(base) > 1 ? `${operation.method.toUpperCase()}_${base}` : base;
-    constantNames.set(operation, `${group}.${key}`);
+
+  for (const [group, groupItems] of groupOperations) {
+    const counts = new Map();
+    for (const operation of groupItems) {
+      const base = operationConstantBase(operation);
+      counts.set(base, (counts.get(base) || 0) + 1);
+    }
+    for (const operation of groupItems) {
+      const base = operationConstantBase(operation);
+      const key = counts.get(base) > 1 ? `${operation.method.toUpperCase()}_${base}` : base;
+      constantNames.set(operation, `${group}.${key}`);
+    }
   }
 }
 
@@ -119,7 +179,9 @@ function pathParameters(operation) {
 }
 
 function queryParameters(operation) {
-  return (operation.operation.parameters || []).filter(parameter => parameter.in === 'query');
+  return (operation.operation.parameters || [])
+    .map(resolve)
+    .filter(parameter => parameter.in === 'query');
 }
 
 function parameterVariable(name) {
@@ -147,8 +209,8 @@ function literal(value) {
 }
 
 function requestBody(operation) {
-  const body = operation.operation.requestBody;
-  if (!body) {
+  const body = resolve(operation.operation.requestBody);
+  if (!body || !Object.keys(body).length) {
     return undefined;
   }
   const entries = Object.entries(body.content || {});
@@ -167,7 +229,7 @@ function responseDetails(operation) {
     .map(Number)
     .sort((left, right) => left - right);
   const status = statuses[0] || 200;
-  const response = operation.operation.responses[String(status)] || {};
+  const response = resolve(operation.operation.responses[String(status)] || {});
   const content = response.content || {};
   const jsonType = Object.keys(content).find(type => type === 'application/json' || type.endsWith('+json'));
   return {
@@ -512,7 +574,7 @@ function multipartParts(operation, body, emitter) {
 
 function testSource(operation) {
   const outputFile = operationTestPath(operation);
-  const relativeRoot = path.relative(path.dirname(outputFile), path.join(__dirname, '..'))
+  const relativeRoot = path.relative(path.dirname(outputFile), REPO_ROOT)
     .split(path.sep)
     .join('/');
   const pathArgs = pathParameters(operation).map(parameterVariable);
@@ -565,6 +627,9 @@ function testSource(operation) {
   if (body && body.mediaType === 'multipart/form-data') {
     requestLines.push(...multipartParts(operation, body, emitter));
   } else if (body) {
+    if (body.mediaType === 'application/x-www-form-urlencoded') {
+      requestLines.push("        .type('form')");
+    }
     requestLines.push(`        .send(${emitter.value('body', body.schema, '        ')})`);
   }
   requestLines[requestLines.length - 1] += ';';
@@ -581,6 +646,7 @@ function testSource(operation) {
         '      const response = await request(baseUrl)',
         `        .${method}(${call})`,
         '        .set(getRequestHeaders())',
+        ...(body && body.mediaType === 'application/x-www-form-urlencoded' ? ["        .type('form')"] : []),
         '        .send({});'
       ],
       assertions: ['expect(response.status).toBe(STATUS.UNPROCESSABLE);']
@@ -604,6 +670,7 @@ function testSource(operation) {
         '        .set(getRequestHeaders())',
         ...(loginOperation
           ? [
+              ...(body && body.mediaType === 'application/x-www-form-urlencoded' ? ["        .type('form')"] : []),
               `        .send(${body && body.mediaType === 'application/json'
                 ? bogusValue('body', body.schema, '        ')
                 : "{ username: 'unknown-user', password: 'invalid-password' }"})`
@@ -626,7 +693,12 @@ function testSource(operation) {
         '      const response = await request(baseUrl)',
         `        .${method}(${constantName}(${bogus.join(', ')}))`,
         '        .set(getRequestHeaders())',
-        ...(body ? [`        .send(${emitter.value('body', body.schema, '        ')})`] : [])
+        ...(body
+          ? [
+              ...(body.mediaType === 'application/x-www-form-urlencoded' ? ["        .type('form')"] : []),
+              `        .send(${emitter.value('body', body.schema, '        ')})`
+            ]
+          : [])
       ],
       assertions: ['expect(response.status).toBe(STATUS.NOT_FOUND);']
     });
@@ -634,7 +706,7 @@ function testSource(operation) {
 
   const lines = [];
   lines.push("const request = require('supertest');");
-  lines.push(`const { ${group}, STATUS } = require('${relativeRoot}/test-data/constants');`);
+  lines.push(`const { ${group}, STATUS } = require('${relativeRoot}/test-data/generated/${outputSuite}/constants');`);
   lines.push(`const { getRequestHeaders } = require('${relativeRoot}/utilities/api');`);
   if (emitter.uses.has('configUsername') || emitter.uses.has('configPassword')) {
     lines.push(`const config = require('${relativeRoot}/config/config');`);
@@ -782,17 +854,385 @@ function constantsSource() {
   return `${lines.join('\n')}\n`;
 }
 
-const generatedFiles = new Set();
-for (const operation of API_OPERATIONS) {
-  const file = operationTestPath(operation);
-  if (generatedFiles.has(file)) {
-    throw new Error(`Multiple API operations map to the same test file: ${file}`);
-  }
-  generatedFiles.add(file);
+function writeFile(file, contents) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, testSource(operation));
+  fs.writeFileSync(file, contents);
 }
 
-fs.writeFileSync(path.join(__dirname, '..', 'test-data', 'constants.js'), constantsSource());
+function tagConfigSource(files) {
+  return [
+    '// Generated by scripts/generate-operation-tests.js. Do not edit.',
+    '// Generated tests keep their order. Any other .test.js file in this folder',
+    '// is discovered automatically, so manual tests need no config changes.',
+    "const fs = require('fs');",
+    "const path = require('path');",
+    '',
+    'const generated = [',
+    ...files.map(file => `  ${javascriptString(file)},`),
+    '];',
+    '',
+    'function collectTests(directory) {',
+    '  return fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {',
+    '    const fullPath = path.join(directory, entry.name);',
+    '    if (entry.isDirectory()) {',
+    '      return collectTests(fullPath);',
+    '    }',
+    "    if (entry.isFile() && entry.name.endsWith('.test.js') && entry.name !== 'run-tests-in-order.test.js') {",
+    '      return [path.relative(__dirname, fullPath).split(path.sep).join("/")];',
+    '    }',
+    '    return [];',
+    '  });',
+    '}',
+    '',
+    'const available = collectTests(__dirname);',
+    '',
+    'const ordered = [',
+    '  ...generated.filter(name => available.includes(name)),',
+    '  ...available.filter(name => !generated.includes(name)).sort()',
+    '];',
+    '',
+    'module.exports = {',
+    '  testOrder: ordered.map(name => `./${name}`)',
+    '};',
+    ''
+  ].join('\n');
+}
 
-console.log(`Generated ${generatedFiles.size} Smartsend-style API operation tests.`);
+function tagRunnerSource(label) {
+  return [
+    "const path = require('path');",
+    "const { testOrder } = require('./test-suite.config');",
+    '',
+    `describe(${javascriptString(`${label} - Ordered Execution`)}, () => {`,
+    '  testOrder.forEach((testFile) => {',
+    '    const testPath = path.join(__dirname, testFile);',
+    "    const testName = path.basename(testFile, '.test.js');",
+    '',
+    '    describe(`Running: ${testName}`, () => {',
+    '      require(testPath);',
+    '    });',
+    '  });',
+    '});',
+    ''
+  ].join('\n');
+}
+
+function suiteConfigSource(tagFolders) {
+  return [
+    '// Generated by scripts/generate-operation-tests.js. Do not edit.',
+    '// Generated tag folders keep their order. New tag folders and tests added',
+    '// directly in this folder are discovered automatically.',
+    "const fs = require('fs');",
+    "const path = require('path');",
+    '',
+    'const generated = [',
+    ...tagFolders.map(name => `  ${javascriptString(name)},`),
+    '];',
+    '',
+    'function collectTests(directory) {',
+    '  return fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {',
+    '    const fullPath = path.join(directory, entry.name);',
+    '    if (entry.isDirectory()) {',
+    '      return collectTests(fullPath);',
+    '    }',
+    "    if (entry.isFile() && entry.name.endsWith('.test.js') && entry.name !== 'run-tests-in-order.test.js') {",
+    '      return [path.relative(__dirname, fullPath).split(path.sep).join("/")];',
+    '    }',
+    '    return [];',
+    '  });',
+    '}',
+    '',
+    "const available = fs.readdirSync(__dirname, { withFileTypes: true })",
+    "  .filter(entry => entry.isDirectory() && fs.existsSync(path.join(__dirname, entry.name, 'run-tests-in-order.test.js')))",
+    '  .map(entry => entry.name);',
+    '',
+    "const rootTests = fs.readdirSync(__dirname, { withFileTypes: true })",
+    "  .filter(entry => entry.isFile() && entry.name.endsWith('.test.js') && entry.name !== 'run-tests-in-order.test.js')",
+    '  .map(entry => entry.name)',
+    '  .sort();',
+    '',
+    '// Folders without their own runner are still discovered, so a new test',
+    '// folder works without touching the framework config.',
+    "const uncoveredTests = fs.readdirSync(__dirname, { withFileTypes: true })",
+    '  .filter(entry => entry.isDirectory() && !available.includes(entry.name))',
+    '  .flatMap(entry => collectTests(path.join(__dirname, entry.name)));',
+    '',
+    'const ordered = [',
+    '  ...generated.filter(name => available.includes(name)),',
+    '  ...available.filter(name => !generated.includes(name)).sort()',
+    '];',
+    '',
+    'module.exports = {',
+    '  testOrder: [',
+    '    ...ordered.map(name => `./${name}/run-tests-in-order.test.js`),',
+    '    ...rootTests.map(name => `./${name}`),',
+    '    ...uncoveredTests.map(name => `./${name}`)',
+    '  ]',
+    '};',
+    ''
+  ].join('\n');
+}
+
+function suiteRunnerSource(label) {
+  return [
+    "const path = require('path');",
+    "const { testOrder } = require('./test-suite.config');",
+    '',
+    `describe(${javascriptString(`${label} - Ordered Execution`)}, () => {`,
+    '  testOrder.forEach((runnerFile) => {',
+    '    require(path.join(__dirname, runnerFile));',
+    '  });',
+    '});',
+    ''
+  ].join('\n');
+}
+
+function metadataSourcePath(sourcePath) {
+  if (/^https?:\/\//i.test(sourcePath)) {
+    return sourcePath;
+  }
+  const relative = path.relative(REPO_ROOT, sourcePath);
+  return relative && !relative.startsWith('..')
+    ? relative.split(path.sep).join('/')
+    : sourcePath;
+}
+
+function generateSuite(input) {
+  const normalized = normalizeSpec(input.spec, { title: input.name });
+  api = normalized.spec;
+  API_OPERATIONS = buildOperations(api);
+  prepareOperations(API_OPERATIONS);
+  outputSuite = slugify(input.suite || DEFAULT_SUITE);
+  if (!outputSuite) {
+    throw new Error('A suite name is required.');
+  }
+
+  const suiteRoot = path.join(REPO_ROOT, 'tests', outputSuite);
+  const displayName = input.name || displayNameFor(api, outputSuite);
+  const description = input.description || descriptionFor(api, displayName);
+  const sourcePath = input.sourcePath || DEFAULT_SPEC;
+
+  writeFile(
+    path.join(REPO_ROOT, 'test-data', 'generated', outputSuite, 'constants.js'),
+    constantsSource()
+  );
+
+  // Manual tests still import test-data/constants. Keep that path working for
+  // the default auth suite while new suites import their own generated file.
+  if (outputSuite === DEFAULT_SUITE) {
+    writeFile(
+      path.join(REPO_ROOT, 'test-data', 'constants.js'),
+      "// Backwards-compatible auth constants. New suites import their own\n" +
+        "// test-data/generated/<suite>/constants.js file.\n" +
+        "module.exports = require('./generated/auth/constants');\n"
+    );
+  }
+
+  const groups = new Map();
+  const generatedFiles = new Set();
+  for (const operation of API_OPERATIONS) {
+    const file = operationTestPath(operation, outputSuite);
+    if (generatedFiles.has(file)) {
+      throw new Error(`Multiple API operations map to the same test file: ${file}`);
+    }
+    generatedFiles.add(file);
+    writeFile(file, testSource(operation));
+
+    const folder = suiteFolderName(operation.tag);
+    if (!groups.has(folder)) {
+      groups.set(folder, { label: operation.tag, files: [] });
+    }
+    groups.get(folder).files.push(path.basename(file));
+  }
+
+  // Remove generated operation tests that are no longer in the specification.
+  // Manual tests are untouched because only files from the last manifest are
+  // considered.
+  const manifestPath = path.join(suiteRoot, '.generated-files.json');
+  let previousFiles = [];
+  if (fs.existsSync(manifestPath)) {
+    try {
+      previousFiles = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    } catch {
+      previousFiles = [];
+    }
+  }
+  const relativeFiles = [...generatedFiles]
+    .map(file => path.relative(suiteRoot, file).split(path.sep).join('/'))
+    .sort();
+  for (const previous of previousFiles) {
+    if (!relativeFiles.includes(previous)) {
+      fs.rmSync(path.join(suiteRoot, previous), { force: true });
+    }
+  }
+  writeFile(manifestPath, `${JSON.stringify(relativeFiles, null, 2)}\n`);
+
+  const tags = [...groups.keys()].sort();
+  for (const folder of tags) {
+    const group = groups.get(folder);
+    writeFile(
+      path.join(suiteRoot, folder, 'test-suite.config.js'),
+      tagConfigSource(group.files.sort())
+    );
+    writeFile(
+      path.join(suiteRoot, folder, 'run-tests-in-order.test.js'),
+      tagRunnerSource(`${displayName} - ${group.label}`)
+    );
+  }
+
+  writeFile(path.join(suiteRoot, 'test-suite.config.js'), suiteConfigSource(tags));
+  writeFile(path.join(suiteRoot, 'run-tests-in-order.test.js'), suiteRunnerSource(displayName));
+  writeFile(
+    path.join(suiteRoot, 'suite.json'),
+    `${JSON.stringify({
+      name: displayName,
+      description,
+      spec: metadataSourcePath(sourcePath),
+      operations: API_OPERATIONS.length,
+      tags
+    }, null, 2)}\n`
+  );
+
+  return {
+    suite: outputSuite,
+    name: displayName,
+    description,
+    operations: API_OPERATIONS.length,
+    files: generatedFiles.size,
+    tags,
+    spec: sourcePath
+  };
+}
+
+async function prepareSource(input, options = {}) {
+  const source = await readSource(input);
+  const raw = parseDocument(source.text, source.source);
+  const normalized = normalizeSpec(raw, { title: options.name });
+  const suite = options.suite
+    ? slugify(options.suite)
+    : suiteNameFor(normalized.spec, { filename: source.filename });
+  return { ...source, normalized, suite };
+}
+
+async function generateFromSource(input, options = {}) {
+  const prepared = await prepareSource(input, options);
+  return generateSuite({
+    spec: prepared.normalized.spec,
+    suite: prepared.suite,
+    sourcePath: prepared.source,
+    name: options.name,
+    description: options.description
+  });
+}
+
+function specFilesFromDirectory(directory) {
+  if (!fs.existsSync(directory)) {
+    return [];
+  }
+  return fs.readdirSync(directory, { withFileTypes: true })
+    .filter(entry => entry.isFile() && /\.(json|ya?ml)$/i.test(entry.name))
+    .map(entry => path.join(directory, entry.name))
+    .sort();
+}
+
+function loadSpecFile(file) {
+  const raw = parseDocument(fs.readFileSync(file, 'utf8'), file);
+  const normalized = normalizeSpec(raw);
+  return {
+    spec: normalized.spec,
+    suite: suiteNameFor(normalized.spec, { filename: path.basename(file) }),
+    sourcePath: file
+  };
+}
+
+function generateAll() {
+  const results = [];
+  if (fs.existsSync(DEFAULT_SPEC)) {
+    results.push(generateSuite({
+      spec: parseDocument(fs.readFileSync(DEFAULT_SPEC, 'utf8'), DEFAULT_SPEC),
+      suite: DEFAULT_SUITE,
+      sourcePath: DEFAULT_SPEC,
+      name: 'Authentication'
+    }));
+  }
+
+  for (const file of specFilesFromDirectory(path.join(REPO_ROOT, 'openapi', 'specs'))) {
+    try {
+      results.push(generateSuite(loadSpecFile(file)));
+    } catch (error) {
+      throw new Error(`${file}: ${error.message}`);
+    }
+  }
+  return results;
+}
+
+function parseArgs(argv) {
+  const options = {};
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index];
+    if (argument === '--spec' || argument === '--suite' || argument === '--name' || argument === '--description') {
+      const value = argv[index + 1];
+      if (!value) {
+        throw new Error(`${argument} requires a value.`);
+      }
+      options[argument.slice(2)] = value;
+      index += 1;
+    } else if (argument === '--help' || argument === '-h') {
+      options.help = true;
+    } else if (!options.spec) {
+      options.spec = argument;
+    } else {
+      throw new Error(`Unknown argument: ${argument}`);
+    }
+  }
+  return options;
+}
+
+function usage() {
+  return [
+    'Usage:',
+    '  node scripts/generate-operation-tests.js [--spec <file-or-url>] [--suite <name>] [--name <display>]',
+    '  node scripts/generate-operation-tests.js',
+    '',
+    'With no arguments, regenerates the default auth suite and every spec in openapi/specs/.'
+  ].join('\n');
+}
+
+async function main() {
+  const options = parseArgs(process.argv.slice(2));
+  if (options.help) {
+    console.log(usage());
+    return;
+  }
+
+  if (options.spec) {
+    const result = await generateFromSource(options.spec, options);
+    console.log(`Generated ${result.files} operation tests for suite "${result.suite}" (${result.tags.length} tags).`);
+    return;
+  }
+
+  const results = generateAll();
+  const files = results.reduce((total, result) => total + result.files, 0);
+  for (const result of results) {
+    console.log(`  ${result.suite}: ${result.files} tests across ${result.tags.length} tags`);
+  }
+  console.log(`Generated ${files} Smartsend-style API operation tests in ${results.length} suite(s).`);
+}
+
+if (require.main === module) {
+  main().catch(error => {
+    console.error(error.message);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = {
+  DEFAULT_SPEC,
+  DEFAULT_SUITE,
+  REPO_ROOT,
+  generateAll,
+  generateFromSource,
+  generateSuite,
+  prepareSource,
+  writeFile
+};

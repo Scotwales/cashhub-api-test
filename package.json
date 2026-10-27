@@ -9,6 +9,8 @@
     "test:contract": "npx jest tests/auth/authentication/authentication.contract.test.js --runInBand --config jest.config.cashhub.js",
     "test:cashhub": "node runTestsCashhub.js all",
     "test:direct": "npx jest --runInBand --config jest.config.cashhub.js",
+    "test:add": "node scripts/add-openapi.js",
+    "test:generate": "node scripts/generate-operation-tests.js",
     "generate:operation-tests": "node scripts/generate-operation-tests.js"
   },
   "engines": {
@@ -26,6 +28,7 @@
     "chai": "^4.5.0",
     "jest": "^29.7.0",
     "jest-html-reporters": "^3.1.7",
-    "jest-junit": "^16.0.0"
+    "jest-junit": "^16.0.0",
+    "js-yaml": "^3.15.2"
   }
 }

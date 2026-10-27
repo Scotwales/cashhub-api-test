@@ -86,8 +86,8 @@ function assertOperationContract(operation) {
 }
 
 // Every operation documented by openapi/cashhub-authentication.json belongs to
-// the auth suite. When another API specification is added, pass its suite name
-// to operationTestPath instead of changing this default.
+// the auth suite. The operation-test generator mirrors this path layout for
+// uploaded specifications; this default is used by the auth contract test.
 const OPERATION_SUITE = 'auth';
 
 function operationTestPath(operation, suite = OPERATION_SUITE) {

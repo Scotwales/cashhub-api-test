@@ -1,5 +1,5 @@
 const request = require('supertest');
-const { POS, STATUS } = require('../../../test-data/constants');
+const { POS, STATUS } = require('../../../test-data/generated/auth/constants');
 const { getRequestHeaders } = require('../../../utilities/api');
 const { resolveOutletId } = require('../../../test-data/apiFixtures');
 

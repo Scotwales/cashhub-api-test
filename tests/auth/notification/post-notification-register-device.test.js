@@ -1,5 +1,5 @@
 const request = require('supertest');
-const { NOTIFICATION, STATUS } = require('../../../test-data/constants');
+const { NOTIFICATION, STATUS } = require('../../../test-data/generated/auth/constants');
 const { getRequestHeaders } = require('../../../utilities/api');
 const { generateReference, generateTestDataSet } = require('../../../data-generator/TestDataGenerator');
 

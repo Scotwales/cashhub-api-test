@@ -1,5 +1,5 @@
 const request = require('supertest');
-const { OTP, STATUS } = require('../../../test-data/constants');
+const { OTP, STATUS } = require('../../../test-data/generated/auth/constants');
 const { getRequestHeaders } = require('../../../utilities/api');
 const { generateReference } = require('../../../data-generator/TestDataGenerator');
 

@@ -1,5 +1,5 @@
 const request = require('supertest');
-const { POS_REQUEST, STATUS } = require('../../../test-data/constants');
+const { POS_REQUEST, STATUS } = require('../../../test-data/generated/auth/constants');
 const { getRequestHeaders } = require('../../../utilities/api');
 
 let baseUrl = process.env.BASE_URL;
