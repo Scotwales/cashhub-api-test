@@ -85,11 +85,21 @@ function assertOperationContract(operation) {
   assertReferencesResolve(operation.operation);
 }
 
-function operationTestPath(operation) {
-  const folder = operation.tag
+// Every operation documented by openapi/cashhub-authentication.json belongs to
+// the auth suite. The operation-test generator mirrors this path layout for
+// uploaded specifications; this default is used by the auth contract test.
+const OPERATION_SUITE = 'auth';
+
+function operationTestPath(operation, suite = OPERATION_SUITE) {
+  const tag = operation.tag
     .replace(/[^a-zA-Z0-9_-]+/g, '-')
     .replace(/^-+|-+$/g, '')
-    .toLowerCase() || 'untagged';
+    .toLowerCase();
+  // Each OpenAPI tag is a subfolder of the suite so every folder keeps its own
+  // runner and the suite config stays small. The Auth tag expands to
+  // "authentication" to avoid a confusing tests/auth/auth/ nesting.
+  const folderName = tag === 'auth' ? 'authentication' : tag;
+  const folder = path.join(suite, folderName);
   const suffix = operation.path.replace(/^\/api\/v1\//, '')
     .replace(/\{([^}]+)\}/g, 'by-$1')
     .replace(/[^a-zA-Z0-9]+/g, '-')
@@ -99,6 +109,7 @@ function operationTestPath(operation) {
 }
 
 module.exports = {
+  OPERATION_SUITE,
   assertOperationContract,
   getOperationById,
   operationTestPath

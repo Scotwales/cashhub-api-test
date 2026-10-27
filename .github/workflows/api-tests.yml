@@ -1,0 +1,48 @@
+name: API Integration Tests
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  api-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout cashhub-api-test
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+
+      - name: Setup test env
+        env:
+          TEST_REPO_DOT_ENV: ${{ secrets.TEST_REPO_DOT_ENV }}
+        run: |
+          if [ -n "$TEST_REPO_DOT_ENV" ]; then
+            echo "$TEST_REPO_DOT_ENV" | base64 --decode > .env
+          else
+            cp .env.example .env
+          fi
+
+      - name: Install test dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: |
+          if grep -q '^BASE_URL=.' .env; then
+            npm run test:ci
+          else
+            npm run test:contract
+          fi
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cashhub-api-test-reports
+          path: reports/
+          retention-days: 14

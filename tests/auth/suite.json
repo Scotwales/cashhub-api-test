@@ -1,0 +1,20 @@
+{
+  "name": "Authentication",
+  "description": "Authentication module — JWT, refresh tokens, PIN management, FCM device registration.",
+  "spec": "openapi/cashhub-authentication.json",
+  "operations": 90,
+  "tags": [
+    "admin",
+    "authentication",
+    "notification",
+    "otp",
+    "outlet",
+    "pos",
+    "posauth",
+    "posavailableterminal",
+    "posinventory",
+    "posrequest",
+    "terminal",
+    "user"
+  ]
+}
