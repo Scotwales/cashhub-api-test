@@ -180,8 +180,8 @@ function pathParameters(operation) {
 
 function queryParameters(operation) {
   return (operation.operation.parameters || [])
-    .map(resolve)
-    .filter(parameter => parameter.in === 'query');
+    .map(parameter => resolve(parameter))
+    .filter(parameter => parameter && parameter.in === 'query');
 }
 
 function parameterVariable(name) {
@@ -194,6 +194,24 @@ function parameterEnvironmentName(name) {
 
 function fieldEnvironmentName(name) {
   return `CASHHUB_TEST_DATA_${name.replace(/([a-z0-9])([A-Z])/g, '$1_$2').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '').toUpperCase()}`;
+}
+
+function genericResolverFor(name) {
+  const lower = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (lower.includes('userid')) return 'resolveUserId';
+  if (lower.includes('outletid')) return 'resolveOutletId';
+  if (lower.includes('inventoryid')) return 'resolveInventoryId';
+  if (lower.includes('terminalid')) return 'resolveTerminalId';
+  if (lower.includes('terminalref')) return 'resolveTerminalRef';
+  if (lower.includes('requestid')) return 'resolveRequestId';
+  if (lower.includes('accountid')) return 'resolveAccountId';
+  if (lower.includes('linkedaccountid')) return 'resolveLinkedAccountId';
+  if (lower.includes('serialnumber')) return 'resolveSerialNumber';
+  if (lower.includes('physicaltid')) return 'resolvePhysicalTid';
+  if (lower.includes('modelcode')) return 'resolveModelCode';
+  if (lower.includes('notificationid')) return 'resolveNotificationId';
+  if (lower.includes('accountnumber')) return 'resolveAccountNumber';
+  return undefined;
 }
 
 function javascriptString(value) {
@@ -301,20 +319,94 @@ const PATH_RESOLVERS = {
 };
 
 function fieldResolver(name) {
-  return RESOLVED_FIELDS[name.toLowerCase()];
+  const lower = name.toLowerCase();
+  if (RESOLVED_FIELDS[lower]) {
+    return RESOLVED_FIELDS[lower];
+  }
+  if (lower.includes('userid')) {
+    return 'resolveUserId';
+  }
+  if (lower.includes('outletid')) {
+    return 'resolveOutletId';
+  }
+  if (lower.includes('inventoryid')) {
+    return 'resolveInventoryId';
+  }
+  if (lower.includes('terminalid')) {
+    return 'resolveTerminalId';
+  }
+  if (lower.includes('terminalref')) {
+    return 'resolveTerminalRef';
+  }
+  if (lower.includes('requestid')) {
+    return 'resolveRequestId';
+  }
+  if (lower.includes('accountid')) {
+    return 'resolveAccountId';
+  }
+  if (lower.includes('serialnumber')) {
+    return 'resolveSerialNumber';
+  }
+  if (lower.includes('physicaltid')) {
+    return 'resolvePhysicalTid';
+  }
+  if (lower.includes('modelcode')) {
+    return 'resolveModelCode';
+  }
+  return undefined;
 }
 
 function pathParameterResolver(operation, name) {
-  if (name.toLowerCase() === 'id') {
+  const lower = name.toLowerCase();
+  if (lower === 'id') {
     if (/\/User\//i.test(operation.path)) {
       return 'resolveUserId';
     }
     if (/\/Notification\//i.test(operation.path)) {
       return 'resolveNotificationId';
     }
-    return undefined;
+    if (/\/Outlet\//i.test(operation.path)) {
+      return 'resolveOutletId';
+    }
+    if (/\/Inventory\//i.test(operation.path)) {
+      return 'resolveInventoryId';
+    }
+    if (/\/Terminal\//i.test(operation.path)) {
+      return 'resolveTerminalId';
+    }
+    if (/\/Request\//i.test(operation.path)) {
+      return 'resolveRequestId';
+    }
+    return 'resolveUserId';
   }
-  return PATH_RESOLVERS[name.toLowerCase()];
+  if (PATH_RESOLVERS[lower]) {
+    return PATH_RESOLVERS[lower];
+  }
+  if (lower.includes('userid') || lower === 'uid') {
+    return 'resolveUserId';
+  }
+  if (lower.includes('outletid')) {
+    return 'resolveOutletId';
+  }
+  if (lower.includes('inventoryid')) {
+    return 'resolveInventoryId';
+  }
+  if (lower.includes('terminalid')) {
+    return 'resolveTerminalId';
+  }
+  if (lower.includes('terminalref')) {
+    return 'resolveTerminalRef';
+  }
+  if (lower.includes('requestid')) {
+    return 'resolveRequestId';
+  }
+  if (lower.includes('accountid')) {
+    return 'resolveAccountId';
+  }
+  if (lower.includes('notificationid')) {
+    return 'resolveNotificationId';
+  }
+  return undefined;
 }
 
 // A create endpoint receives values for the resource it is creating rather
@@ -605,7 +697,7 @@ function testSource(operation) {
   const resolvedPathParameters = new Map();
   const unresolvedPathParameters = [];
   for (const parameter of pathParameters(operation)) {
-    const resolver = pathParameterResolver(operation, parameter);
+    const resolver = pathParameterResolver(operation, parameter) || genericResolverFor(parameter);
     if (resolver) {
       resolvedPathParameters.set(parameterVariable(parameter), resolver);
       emitter.uses.add(resolver);
@@ -614,7 +706,7 @@ function testSource(operation) {
     }
   }
   for (const parameter of queryParams) {
-    const resolver = fieldResolver(parameter.name);
+    const resolver = fieldResolver(parameter.name) || genericResolverFor(parameter.name);
     if (resolver) {
       emitter.uses.add(resolver);
     }
@@ -753,8 +845,9 @@ function testSource(operation) {
     lines.push('      const query = {};');
     for (const parameter of queryParams) {
       const variable = parameterVariable(parameter.name);
-      const resolver = fieldResolver(parameter.name);
+      const resolver = fieldResolver(parameter.name) || genericResolverFor(parameter.name);
       if (resolver) {
+        emitter.uses.add(resolver);
         lines.push(`      query.${variable} = await ${resolver}();`);
       } else {
         const environmentName = parameterEnvironmentName(parameter.name);

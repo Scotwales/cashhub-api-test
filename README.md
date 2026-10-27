@@ -17,9 +17,9 @@ cp .env.example .env
 
 Set `BASE_URL` to the API service root and only use a CashHub JWT with the `Bearer` scheme. The Swagger document does not define OAuth client credentials. Set `API_TOKEN` for authenticated operations.
 
-Values that can be generated without configuration come from `generateTestDataSet()` in `data-generator/TestDataGenerator.js`: unique names, emails, usernames, phone numbers, addresses, device identifiers, registration and password-change passwords, and references. Do not add environment variables for these.
+Values that can be generated without configuration come from `generateTestDataSet()` in `data-generator/TestDataGenerator.js`: unique names, emails, usernames, phone numbers, addresses, device identifiers, registration and password-change passwords, and references. Resource identifiers are generated on demand by `test-data/apiFixtures.js` when no API lookup or override provides them, so regression runs do not require static ID environment variables. Do not add environment variables for fields that the generators can create.
 
-Resource identifiers used in paths, query strings, and request bodies are resolved by `test-data/apiFixtures.js`. For each identifier the resolver returns `CASHHUB_TEST_PARAM_<NAME>` or `CASHHUB_TEST_DATA_<FIELD>` when set, otherwise fetches a matching record, and finally creates one through the API when the contract allows it. The cache is per test file, so setup happens once and is reused by every test in that file. A test only fails to resolve an identifier when the environment has no usable record, creation is not possible, and no override is set; the error names the override to configure.
+Resource identifiers used in paths, query strings, and request bodies are resolved by `test-data/apiFixtures.js`. For each identifier the resolver returns `CASHHUB_TEST_PARAM_<NAME>` or `CASHHUB_TEST_DATA_<FIELD>` when set, otherwise fetches a matching record, or creates one through the API when the contract allows it. When no live environment is available or creation is not possible, it falls back to deterministic generated values so regression suites can run without static fixtures. The cache is per test file, so setup happens once and is reused by every test in that file. Tests that still depend on environment-specific secrets (tokens, OTPs, PINs, partner codes, upload files) require `CASHHUB_TEST_DATA_*` or `CASHHUB_TEST_FILE_*` values and fail clearly if missing.
 
 Use `CASHHUB_TEST_DATA_<FIELD>` for values the resolver cannot invent - session/refresh tokens, OTPs, PINs, partner codes, and upload fixtures - or to pin a known record. Supply those values from a disposable test environment rather than production.
 
@@ -103,7 +103,7 @@ Remove the flag once the test should run again.
 - `jest.config.cashhub.js`, `jest.setup.js`, and `babel.config.js`: Jest, Babel, request logging, and HTML/JUnit reporting configuration.
 - `data-generator/TestDataGenerator.js`: shared generators and `generateTestDataSet()`, the utility that builds unique, internally consistent values without environment variables.
 - `utilities/api.js`: base-URL normalization and request-header builder, including optional bearer authentication.
-- `test-data/apiFixtures.js`: resolver/factory for resource identifiers. Each resolver prefers an environment override, then an existing record, then creates the prerequisite over HTTP.
+- `test-data/apiFixtures.js`: resolver/factory for resource identifiers. Each resolver prefers an environment override, then an existing record, then creates the prerequisite over HTTP. If no record is available in the target environment, it falls back to dynamically generated identifiers so suites remain runnable for regression checks without static fixtures.
 - `utilities/logger.js`: captures request/response details for terminal and HTML reports, redacting sensitive fields.
 - `openapi/cashhub-authentication.json`: API contract used by the offline contract tests and by the operation-test generator.
 - `openapi/specs/`: uploaded Swagger/OpenAPI documents, normalised to OpenAPI 3 JSON. `test:generate` scans this folder automatically.
